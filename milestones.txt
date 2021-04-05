@@ -1,0 +1,14 @@
+Aspirational Milestones by Week
+
+9 APR: static, fixed 1d discrete environment for UAV with discrete actions to find optimal location; RL solver (actor critic with TD-0 like updates); simple viz
+
+16 APR: 2d, immobile HQ and asset, fixed, discrete state and action, fully obseved. Potentially relax the 'static' and/or 'fixed' portion
+
+23 APR: Moving and/or more assets/HQ. Lose observability if lose comms.
+
+
+
+
+
+28 MAY: Multiple comms, multiple intelligent (RL) jammers.
+
