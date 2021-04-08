@@ -4,8 +4,8 @@ class Field1D():  # To use Gym inherit from gym.Env
     def __init__(self):
         self.opt = 5.
         self.peak = 10.
-        self.left_bound = -10
-        self.right_bound = 10
+        self.left_bound = -20
+        self.right_bound = 20
         # Objects to define if using gym to pass to solver
         #    self.observation_space
         #    self.action_space
