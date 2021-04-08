@@ -78,7 +78,7 @@ for episode in range(EPISODES):
             discounted_sum = r + gamma * discounted_sum
             cumulative_discounted_rewards.insert(0, discounted_sum)
 
-        # Normalize
+        # Normalize the cumulative, discounted reward history
         cumulative_discounted_rewards = np.array(cumulative_discounted_rewards)
         normalized_cumulative_discounted_rewards = (cumulative_discounted_rewards - np.mean(cumulative_discounted_rewards)) / (np.std(cumulative_discounted_rewards) + 0.000001)
         normalized_cumulative_discounted_rewards = normalized_cumulative_discounted_rewards.tolist()
@@ -102,11 +102,11 @@ for episode in range(EPISODES):
             )
 
         # Backpropagation
-        loss_value = sum(actor_losses) + sum(critic_losses)
-        grads = tape.gradient(loss_value, model.trainable_variables)
-        optimizer.apply_gradients(zip(grads, model.trainable_variables))
+        overall_loss_value = sum(actor_losses) + sum(critic_losses)
+        gradientss = tape.gradient(overall_loss_value, model.trainable_variables)
+        optimizer.apply_gradients(zip(gradientss, model.trainable_variables))
 
-        # Clear the loss and reward history
+        # Clear the loss and reward history for next episode
         action_probs_history.clear()
         critic_value_history.clear()
         rewards_history.clear()
