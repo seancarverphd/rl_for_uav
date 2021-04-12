@@ -1,6 +1,6 @@
 import numpy as np
 
-class Field1D():  # To use Gym inherit from gym.Env
+class Field2D():  # To use Gym inherit from gym.Env
     def __init__(self):
         self.opt_x = 5.
         self.opt_y = 7.
@@ -16,7 +16,7 @@ class Field1D():  # To use Gym inherit from gym.Env
         self.x = 0
         self.y = 0
         self.n = 0  # Count number of steps
-        return self.x, self.y
+        return [self.x, self.y]
 
     def convert_action_2d(self, action):
         assert isinstance(action, int)
@@ -26,6 +26,7 @@ class Field1D():  # To use Gym inherit from gym.Env
         action_y = int(action / 3) - 1
         assert action_x == -1 or action_x == 0 or action_x == 1
         assert action_y == -1 or action_y == 0 or action_y == 1
+        return action_x, action_y
 
     def reward_func(self):
         return -(self.x - self.opt_x)**2 -(self.y - self.opt_y)**2 + self.peak
@@ -39,12 +40,12 @@ class Field1D():  # To use Gym inherit from gym.Env
         if self.x > self.right_bound:
             self.x = self.right_bound
         self.n += 1
-        obs = self.x
+        obs = [self.x, self.y]
         reward = self.reward_func()
         done = (self.n >= 15)
         info = {}
         return obs, reward, done, info
 
     def render(self):
-        print(str(self.x) + " approaching " + str(self.opt))
+        print("["+ str(self.x) + ", "+ str(self.y) + "] approaching [" + str(self.opt_x) + ", " + str(self.opt_y) + "]")
 
