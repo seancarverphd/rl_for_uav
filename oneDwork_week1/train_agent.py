@@ -44,6 +44,7 @@ gamma = .9  # Discount factor for rewards
 action_probs_history = []
 critic_value_history = []
 rewards_history = []
+best = None
 
 for episode in range(EPISODES):
     state = env.reset()
@@ -69,7 +70,13 @@ for episode in range(EPISODES):
             rewards_history.append(reward)
             episode_reward += reward
 
-        print(state) # casually examine the final state of each episode, should approach 5
+        if best is None or best < episode_reward:
+            best = episode_reward
+            beststr = "BEST"
+        else:
+            beststr = ''
+
+        print(state, "Cumulative reward:", episode_reward, beststr) # casually examine the final state of each episode, should approach: 5
 
         # store the cumulative, discounted rewards
         cumulative_discounted_rewards = []
