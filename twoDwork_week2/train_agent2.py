@@ -11,8 +11,8 @@ from tensorflow.keras import layers
 
 
 # import the environment
-from oneDwork_week1.field1d import Field1D
-env = Field1D()
+from field2d import Field2D
+env = Field2D()
 
 # cleanup: delete the TF model if it is haning around
 try:
@@ -23,8 +23,8 @@ except:
 
 # set up the model
 num_hidden = 48 # size of hidden layer
-num_inputs = 1 # just the x position
-num_actions = 3  # left, stay in same place, right
+num_inputs = 2 # just the x and y positions
+num_actions = 9  # kings moves plus stay in place
 
 inputs = layers.Input(shape=(num_inputs,))
 common = layers.Dense(num_hidden, activation="relu")(inputs)
@@ -61,10 +61,7 @@ for episode in range(EPISODES):
             action = np.random.choice(num_actions, p=np.squeeze(action_probs))
             action_probs_history.append(tf.math.log(action_probs[0, action]))
 
-            # re-map action from 0,1,2 to -1,0,1, as per environment's requirement
-            movement = action - 1
-
-            state, reward, done, _ = env.step(movement)
+            state, reward, done, _ = env.step(action)
 
             rewards_history.append(reward)
             episode_reward += reward

@@ -11,7 +11,7 @@ from tensorflow.keras import layers
 
 
 # import the environment
-from oneDwork_week1.field1d import Field1D
+from field1d import Field1D  # from oneDwork_week1.field1d import Field1D
 env = Field1D()
 
 # cleanup: delete the TF model if it is haning around
