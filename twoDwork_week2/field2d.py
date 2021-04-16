@@ -39,6 +39,10 @@ class Field2D():  # To use Gym inherit from gym.Env
             self.x = self.left_bound
         if self.x > self.right_bound:
             self.x = self.right_bound
+        if self.y < self.left_bound:
+            self.y = self.left_bound
+        if self.y > self.right_bound:
+            self.y = self.right_bound
         self.n += 1
         obs = [self.x, self.y]
         reward = self.reward_func()
