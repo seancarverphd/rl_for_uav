@@ -37,7 +37,7 @@ optimizer = keras.optimizers.Adam(learning_rate=0.005)
 huber_loss = keras.losses.Huber()
 
 
-EPISODES = 500
+EPISODES = 5000
 STEPS_PER_EPISODE = 30
 gamma = .9  # Discount factor for rewards
 
