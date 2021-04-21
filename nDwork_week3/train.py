@@ -35,13 +35,13 @@ def iterate_batches(env, net, batch_size):
     batch = []
     episode_reward = 0.0
     episode_steps = []
-    obs = env.reset()
-    sm = nn.Softmax(dim=1)
+    obs = env.reset()  # should create a flat numpy.array shape=[n_obs]
+    softmax = nn.Softmax(dim=1)  # Returns a function
     while True:
-        obs_v = torch.FloatTensor([obs])
-        act_probs_v = sm(net(obs_v))
-        act_probs = act_probs_v.data.numpy()[0]
-        action = np.random.choice(len(act_probs), p=act_probs)
+        obs_v = torch.FloatTensor([obs])  # creates a tensor of shape=[1, n_obs]: listification of input needed for shape
+        act_probs_v = softmax(net(obs_v))  # tensor shape=[1,n_act]: softmax makes them probs of actions
+        act_probs = act_probs_v.data.numpy()[0]  # flat numpy.array shape=[n_act]: selecting [0] flattens from 2D-array
+        action = np.random.choice(len(act_probs), p=act_probs)  # selects one action from discrete distribution
         next_obs, reward, is_done, _ = env.step(action)
         episode_reward += reward
         step = EpisodeStep(observation=obs, action=action)
@@ -78,7 +78,6 @@ def filter_batch(batch, percentile):
 
 if __name__ == "__main__":
     env = gym.make("CartPole-v0")
-    # env = gym.wrappers.Monitor(env, directory="mon", force=True)
     obs_size = env.observation_space.shape[0]
     n_actions = env.action_space.n
 
@@ -87,11 +86,9 @@ if __name__ == "__main__":
     optimizer = optim.Adam(params=net.parameters(), lr=0.01)
     writer = SummaryWriter(comment="-cartpole")
 
-    for iter_no, batch in enumerate(iterate_batches(
-            env, net, BATCH_SIZE)):
-        obs_v, acts_v, reward_b, reward_m = \
-            filter_batch(batch, PERCENTILE)
-        optimizer.zero_grad()
+    for iter_no, batch in enumerate(iterate_batches(env, net, BATCH_SIZE)):
+        obs_v, acts_v, reward_b, reward_m = filter_batch(batch, PERCENTILE)
+        optimizer.zero_grad()  # sets gradients to zero; otherwise accumulates from previous calculations
         action_scores_v = net(obs_v)
         loss_v = objective(action_scores_v, acts_v)
         loss_v.backward()
