@@ -8,9 +8,10 @@ class Field2D(gym.Env):  # To use Gym inherit from gym.Env
         self.peak = 10.
         self.left_bound = -20
         self.right_bound = 20
-        # Objects to define if using gym to pass to solver
-        #    self.observation_space
-        #    self.action_space
+        self.lower_bound = -20
+        self.upper_bound = 20
+        self.observation_space = gym.spaces.Box(low=np.array((self.left_bound,self.lower_bound), dtype=np.float32), high=np.array((self.right_bound,self.upper_bound), dtype=np.float32))
+        self.action_space = gym.spaces.Discrete(9)  # king's moves plus stay
         self.reset()
 
     def reset(self):
@@ -40,10 +41,10 @@ class Field2D(gym.Env):  # To use Gym inherit from gym.Env
             self.x = self.left_bound
         if self.x > self.right_bound:
             self.x = self.right_bound
-        if self.y < self.left_bound:
-            self.y = self.left_bound
-        if self.y > self.right_bound:
-            self.y = self.right_bound
+        if self.y < self.lower_bound:
+            self.y = self.lower_bound
+        if self.y > self.upper_bound:
+            self.y = self.upper_bound
         self.n += 1
         obs = [self.x, self.y]
         reward = self.reward_func()
