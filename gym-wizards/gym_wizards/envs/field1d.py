@@ -7,7 +7,7 @@ class Field1D(gym.Env):  # To use Gym inherit from gym.Env
         self.peak = 10.
         self.left_bound = -20
         self.right_bound = 20
-        self.observation_space = gym.spaces.Discrete(1 + self.right_bound - self.left_bound)
+        self.observation_space = gym.spaces.Box(low=np.array((self.left_bound,), dtype=np.float32), high=np.array((self.right_bound,), dtype=np.float32))  # [-20,20]
         self.action_space = gym.spaces.Discrete(3)  # left, stay, right
         self.reset()
 
