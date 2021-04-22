@@ -14,9 +14,10 @@ class Field1D(gym.Env):  # To use Gym inherit from gym.Env
     def reset(self):
         self.x = 0
         self.n = 0  # Count number of steps
-        return self.x
+        return [self.x]
 
     def step(self, action):
+        action -= 1
         assert action == -1 or action == 0 or action == 1
         self.x += action
         if self.x < self.left_bound:
@@ -24,7 +25,7 @@ class Field1D(gym.Env):  # To use Gym inherit from gym.Env
         if self.x > self.right_bound:
             self.x = self.right_bound
         self.n += 1
-        obs = self.x
+        obs = [self.x]
         reward = -(self.x - self.opt)**2 + self.peak
         done = (self.n >= 15)
         info = {}
