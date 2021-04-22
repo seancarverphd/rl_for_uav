@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import gym
+import gym_wizards
 from collections import namedtuple
 import numpy as np
 from tensorboardX import SummaryWriter
@@ -78,14 +79,14 @@ def filter_batch(batch, percentile):
 
 
 if __name__ == "__main__":
-    env = gym.make("CartPole-v0")
+    env = gym.make("field1d-v0")  # gym.make("CartPole-v0")
     obs_size = env.observation_space.shape[0]
     n_actions = env.action_space.n
 
     net = Net(obs_size, HIDDEN_SIZE, n_actions)
     objective = nn.CrossEntropyLoss()
     optimizer = optim.Adam(params=net.parameters(), lr=0.01)
-    writer = SummaryWriter(comment="-cartpole")
+    writer = SummaryWriter(comment="-field1d") # SummaryWriter(comment="-cartpole")
 
     for iter_no, batch in enumerate(iterate_batches(env, net, BATCH_SIZE)):
         obs_v, acts_v, reward_b, reward_m = filter_batch(batch, PERCENTILE)
@@ -98,7 +99,7 @@ if __name__ == "__main__":
         writer.add_scalar("loss", loss_v.item(), iter_no)
         writer.add_scalar("reward_bound", reward_b, iter_no)
         writer.add_scalar("reward_mean", reward_m, iter_no)
-        if reward_m > 199:
+        if reward_m > 119.5:  # > 199:  # This convergence criteria had to be tweak
             print("Solved!")
             break
     writer.close()
