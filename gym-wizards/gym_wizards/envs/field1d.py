@@ -7,9 +7,8 @@ class Field1D(gym.Env):  # To use Gym inherit from gym.Env
         self.peak = 10.
         self.left_bound = -20
         self.right_bound = 20
-        # Objects to define if using gym to pass to solver
-        #    self.observation_space
-        #    self.action_space
+        self.observation_space = gym.spaces.Discrete(1 + self.right_bound - self.left_bound)
+        self.action_space = gym.spaces.Discrete(3)  # left, stay, right
         self.reset()
 
     def reset(self):
