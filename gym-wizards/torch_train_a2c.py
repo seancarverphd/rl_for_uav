@@ -14,47 +14,48 @@ import numpy as np
 import gym
 import gym_wizards
 
+ENV = "field2d-v0"
 HIDDEN_SIZE = 48 # size of hidden layer
+LEARNING_RATE = 0.005
+EPISODES = 5000
+STEPS_PER_EPISODE = 30
+GAMMA = .9  # Discount factor for rewards
 
 ## CREATE THE NEURAL NETWORK
 
-class Net(nn.Module):
-    def __init__(self, obs_size, act_size):
-        super(Net, self).__init__()
+class Model(nn.Module):
+    def __init__(self, obs_size, n_actions):
+        super(Model, self).__init__()
 
         self.common = nn.Sequential(
             nn.Linear(obs_size, HID_SIZE),
             nn.ReLU(),
         )
         self.action = nn.Sequential(
-            nn.Linear(HID_SIZE, act_size),
-            nn.Softmax(),  # Put in dimension to Softmax(dim=0 or dim=1)?
+            nn.Linear(HID_SIZE, n_actions),
+            nn.Softmax(dim=1),  # TODO Put in dimension to Softmax(dim=0 or dim=1)?
         )
         self.critic = nn.Linear(HID_SIZE, 1)
 
-    def forward(self, x):
-        common_out = self.common(x.unsqueeze(dim=1))
-        return self.mu(common_out), self.var(common_out), self.value(common_out)
-
-# load the environment
-env = gym.make("field2d-v0")
-obs_size = env.observation_space.shape[0] # 2 # just the x and y positions
-n_actions = env.action_space.n # 9  # kings moves plus stay in place
+    def forward(self, inputs):
+        common_out = self.common(inputs.unsqueeze(dim=1))  # TODO is unsqueeze needed`
+        return self.action(common_out), self.value(common_out)
 
 # inputs = layers.Input(shape=(num_inputs,))
 # common = layers.Dense(HIDDEN_SIZE, activation="relu")(inputs)
 # action = layers.Dense(num_actions, activation="softmax", name="action")(common)
 # critic = layers.Dense(1,name="critic")(common)
-#
+
+# load the environment and model
+env = gym.make(ENV)
+obs_size = env.observation_space.shape[0] # 2 # just the x and y positions
+n_actions = env.action_space.n # 9  # kings moves plus stay-in-place
+model = Model(obs_size, n_actions)
 # model = keras.Model(inputs=inputs, outputs=[action, critic])
-
-optimizer = keras.optimizers.Adam(learning_rate=0.005)
-huber_loss = keras.losses.Huber()
-
-
-EPISODES = 5000
-STEPS_PER_EPISODE = 30
-gamma = .9  # Discount factor for rewards
+optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+# optimizer = keras.optimizers.Adam(learning_rate=0.005)
+huber_loss = torch.nn.HuberLoss()
+# huber_loss = keras.losses.Huber()
 
 action_probs_history = []
 critic_value_history = []
@@ -94,7 +95,7 @@ for episode in range(EPISODES):
         cumulative_discounted_rewards = []
         discounted_sum = 0
         for r in rewards_history[::-1]:
-            discounted_sum = r + gamma * discounted_sum
+            discounted_sum = r + GAMMA * discounted_sum
             cumulative_discounted_rewards.insert(0, discounted_sum)
 
         # Normalize the cumulative, discounted reward history
