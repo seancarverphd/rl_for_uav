@@ -15,9 +15,10 @@ import gym
 import gym_wizards
 
 ENV = "field2d-v0"
+DEVICE = "cpu"
 HIDDEN_SIZE = 48 # size of hidden layer
 LEARNING_RATE = 0.005
-EPISODES = 5000
+EPISODES = 5000  # Really this is number of singleton batches
 STEPS_PER_EPISODE = 30
 GAMMA = .9  # Discount factor for rewards
 
@@ -65,63 +66,109 @@ best = None
 for episode in range(EPISODES):
     state = env.reset()
     episode_reward = 0
-    with tf.GradientTape(persistent=False) as tape:
-        for step in range(STEPS_PER_EPISODE):
+    # with tf.GradientTape(persistent=False) as tape:
+    # step = 0  # TODO Uncomment for while not done
+    # done = False  # TODO Uncomment for while not done
+    # while not done:  # better to let the environment count the steps as with some problems the number can be variable 
+    for step in range(STEPS_PER_EPISODE):
 
-            # Take a step using the learned policy
-            curr_st_array = tf.convert_to_tensor(state)
-            curr_st_array = tf.expand_dims(curr_st_array, 0)
-            action_probs, critic_value = model(curr_st_array)
-            critic_value_history.append(critic_value[0, 0])
+        # Take a step using the learned policy
+        state_v = torch.FloatTensor([state])  # TODO comment still good?:  creates a tensor of shape=[1, n_obs]: list from input needed for shape
+        state_v = state_v.to(DEVICE)
+        # curr_st_array = tf.convert_to_tensor(state)
+        # curr_st_array = tf.expand_dims(curr_st_array, 0)
+        action_probs_v, critic_value_v = model(state_v)
+        action_probs = action_probs_v.squeeze(dim=0).data.cpu().numpy()  # TODO is the squeeze necessary?
+        critic_value = critic_value_v.squeeze(dim=0).data.cpu().numpy()  # TODO is the squeeze necessary?
 
-            # sample action from probability distribution
-            action = np.random.choice(num_actions, p=np.squeeze(action_probs))
-            action_probs_history.append(tf.math.log(action_probs[0, action]))
+        # action_probs, critic_value = model(curr_st_array)
+        critic_value_history.append(critic_value)
+        # critic_value_history.append(critic_value[0, 0])  TODO is subscipting still necessary
 
-            state, reward, done, _ = env.step(action)
+        # sample action from probability distribution
+        action = np.random.choice(num_actions, p=np.squeeze(action_probs))  # TODO squeeze necessary?
+        action_probs_history.append(tf.math.log(action_probs[0, action]))  # TODO indexing correct?
 
-            rewards_history.append(reward)
-            episode_reward += reward
+        state, reward, done, _ = env.step(action)
 
-        if best is None or best < episode_reward:
-            best = episode_reward
-            beststr = "BEST"
-        else:
-            beststr = ''
+        rewards_history.append(reward)
+        episode_reward += reward
+        # step += 1  # TODO Uncomment for while not done
+    
+    ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
 
-        print(state, "Cumulative reward:", episode_reward, beststr) # casually examine the final state of each episode, should approach:  [5, 5]
+    if best is None or best < episode_reward:
+        best = episode_reward
+        beststr = "BEST"
+    else:
+        beststr = ''
 
-        # store the cumulative, discounted rewards
-        cumulative_discounted_rewards = []
-        discounted_sum = 0
-        for r in rewards_history[::-1]:
-            discounted_sum = r + GAMMA * discounted_sum
-            cumulative_discounted_rewards.insert(0, discounted_sum)
+    print(state, "Cumulative reward:", episode_reward, beststr) # examine the final state of each episode plus more
 
-        # Normalize the cumulative, discounted reward history
-        cumulative_discounted_rewards = np.array(cumulative_discounted_rewards)
-        normalized_cumulative_discounted_rewards = (cumulative_discounted_rewards - np.mean(cumulative_discounted_rewards)) / (np.std(cumulative_discounted_rewards) + 0.000001)
-        normalized_cumulative_discounted_rewards = normalized_cumulative_discounted_rewards.tolist()
+    # store the cumulative, discounted rewards
+    cumulative_discounted_rewards = []
+    discounted_sum = 0
+    for r in rewards_history[::-1]:
+        discounted_sum = r + GAMMA * discounted_sum
+        cumulative_discounted_rewards.insert(0, discounted_sum)
 
-        history = zip(action_probs_history, critic_value_history, normalized_cumulative_discounted_rewards)
-        actor_losses = []
-        critic_losses = []
-        for log_prob, critic_val, normed_cum_disc_rew in history:
-            # At this point in history, the critic estimated that we would get a
-            # total reward = `value` in the future. We took an action with log probability
-            # of `log_prob` and ended up recieving a total reward = `ret`.
-            # The actor must be updated so that it predicts an action that leads to
-            # high rewards (compared to critic's estimate) with high probability.
-            diff = normed_cum_disc_rew - critic_val
-            actor_losses.append(-log_prob * diff)  # actor loss
+    # Normalize the cumulative, discounted reward history
+    cumulative_discounted_rewards = np.array(cumulative_discounted_rewards)
+    # TODO  Test.  I am suspicous of the next two lines.  Better, I think, to standardize batches than episodes
+    normalized_cumulative_discounted_rewards = (cumulative_discounted_rewards - np.mean(cumulative_discounted_rewards)) / (np.std(cumulative_discounted_rewards) + 0.000001)
+    normalized_cumulative_discounted_rewards = normalized_cumulative_discounted_rewards.tolist()
 
-            # The critic must be updated so that it predicts a better estimate of
-            # the future rewards.
-            critic_losses.append(
-                huber_loss(tf.expand_dims(critic_val, 0), tf.expand_dims(normed_cum_disc_rew, 0))
-            )
+    history = zip(action_probs_history, critic_value_history, normalized_cumulative_discounted_rewards)
+    actor_losses = []
+    critic_losses = []
+    for log_prob, critic_val, normed_cum_disc_rew in history:
+        # At this point in history, the critic estimated that we would get a
+        # total reward = `value` in the future. We took an action with log probability
+        # of `log_prob` and ended up recieving a total reward = `ret`.
+        # The actor must be updated so that it predicts an action that leads to
+        # high rewards (compared to critic's estimate) with high probability.
+        diff = normed_cum_disc_rew - critic_val
+        actor_losses.append(-log_prob * diff)  # actor loss
+
+        # The critic must be updated so that it predicts a better estimate of
+        # the future rewards.
 
         # Backpropagation
+        optimizer.zero_grad()
+        critic_losses.append(huber_loss(critic_val, normed_cum_disc_rew, 0))  # TODO Probably need to massage dimensions but I don't know how)
+        # critic_losses.append(
+        #    huber_loss(tf.expand_dims(critic_val, 0), tf.expand_dims(normed_cum_disc_rew, 0))
+        # )
+        # NEW: loss_value_v = huber_loss(critic_v.unsqueeze(dim=-1), vals_ref_v)
+
+
+                '''adv_v = vals_ref_v.unsqueeze(dim=-1) - value_v.detach()
+                log_prob_v = adv_v * calc_logprob(mu_v, var_v, actions_v)
+                loss_policy_v = -log_prob_v.mean()
+                ent_v = -(torch.log(2*math.pi*var_v) + 1)/2
+                entropy_loss_v = ENTROPY_BETA * ent_v.mean()
+
+                loss_v = loss_policy_v + entropy_loss_v + loss_value_v
+                loss_v.backward()
+                optimizer.step()
+
+
+                optimizer.zero_grad()
+                mu_v, var_v, value_v = net(states_v)
+
+                loss_value_v = F.mse_loss(value_v.squeeze(-1), vals_ref_v)
+
+                adv_v = vals_ref_v.unsqueeze(dim=-1) - value_v.detach()
+                log_prob_v = adv_v * calc_logprob(mu_v, var_v, actions_v)
+                loss_policy_v = -log_prob_v.mean()
+                ent_v = -(torch.log(2*math.pi*var_v) + 1)/2
+                entropy_loss_v = ENTROPY_BETA * ent_v.mean()
+
+                loss_v = loss_policy_v + entropy_loss_v + loss_value_v
+                loss_v.backward()
+                optimizer.step()'''
+
+
         overall_loss_value = sum(actor_losses) + sum(critic_losses)
         gradientss = tape.gradient(overall_loss_value, model.trainable_variables)
         optimizer.apply_gradients(zip(gradientss, model.trainable_variables))
