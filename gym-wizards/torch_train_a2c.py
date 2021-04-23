@@ -121,6 +121,7 @@ for episode in range(EPISODES):
     history = zip(action_probs_history, critic_value_history, normalized_cumulative_discounted_rewards)
     actor_losses = []
     critic_losses = []
+    optimizer.zero_grad()
     for log_prob, critic_val, normed_cum_disc_rew in history:
         # At this point in history, the critic estimated that we would get a
         # total reward = `value` in the future. We took an action with log probability
@@ -132,17 +133,13 @@ for episode in range(EPISODES):
 
         # The critic must be updated so that it predicts a better estimate of
         # the future rewards.
-
-        # Backpropagation
-        optimizer.zero_grad()
         critic_losses.append(huber_loss(critic_val, normed_cum_disc_rew, 0))  # TODO Probably need to massage dimensions but I don't know how)
         # critic_losses.append(
         #    huber_loss(tf.expand_dims(critic_val, 0), tf.expand_dims(normed_cum_disc_rew, 0))
         # )
         # NEW: loss_value_v = huber_loss(critic_v.unsqueeze(dim=-1), vals_ref_v)
-
-
-                '''adv_v = vals_ref_v.unsqueeze(dim=-1) - value_v.detach()
+                '''OLD OLD OLD
+                adv_v = vals_ref_v.unsqueeze(dim=-1) - value_v.detach()
                 log_prob_v = adv_v * calc_logprob(mu_v, var_v, actions_v)
                 loss_policy_v = -log_prob_v.mean()
                 ent_v = -(torch.log(2*math.pi*var_v) + 1)/2
@@ -167,14 +164,17 @@ for episode in range(EPISODES):
                 loss_v = loss_policy_v + entropy_loss_v + loss_value_v
                 loss_v.backward()
                 optimizer.step()'''
+    # TODO Incredulous that this will work
+    # Backpropagation
+    overall_loss_value = sum(actor_losses) + sum(critic_losses)
+    overall_loss_value.backward()
+    # gradientss = tape.gradient(overall_loss_value, model.trainable_variables)
+    
+    optimizer.step()
+    # optimizer.apply_gradients(zip(gradientss, model.trainable_variables))
 
-
-        overall_loss_value = sum(actor_losses) + sum(critic_losses)
-        gradientss = tape.gradient(overall_loss_value, model.trainable_variables)
-        optimizer.apply_gradients(zip(gradientss, model.trainable_variables))
-
-        # Clear the loss and reward history for next episode
-        action_probs_history.clear()
-        critic_value_history.clear()
-        rewards_history.clear()
+    # Clear the loss and reward history for next episode
+    action_probs_history.clear()
+    critic_value_history.clear()
+    rewards_history.clear()
 
