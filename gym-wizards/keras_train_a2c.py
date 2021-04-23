@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # adapted wholesale from https://keras.io/examples/rl/actor_critic_cartpole/
 
 # imports
@@ -8,11 +9,11 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-
+import gym
+import gym_wizards
 
 # import the environment
-from field2d import Field2D
-env = Field2D()
+env = gym.make("field2d-v0")
 
 # cleanup: delete the TF model if it is haning around
 try:
@@ -23,8 +24,8 @@ except:
 
 # set up the model
 num_hidden = 48 # size of hidden layer
-num_inputs = 2 # just the x and y positions
-num_actions = 9  # kings moves plus stay in place
+num_inputs = env.observation_space.shape[0] # 2 # just the x and y positions
+num_actions = env.action_space.n # 9  # kings moves plus stay in place
 
 inputs = layers.Input(shape=(num_inputs,))
 common = layers.Dense(num_hidden, activation="relu")(inputs)
