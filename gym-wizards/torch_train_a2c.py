@@ -1,38 +1,52 @@
 #!/usr/bin/env python3
 # adapted wholesale from https://keras.io/examples/rl/actor_critic_cartpole/
+# then adapted for PyTorch
 
 # imports
-import tensorflow_probability as tfp
-tfd = tfp.distributions
+# import tensorflow_probability as tfp
+# tfd = tfp.distributions
+# import tensorflow as tf
+# from tensorflow import keras
+# from tensorflow.keras import layers
+import torch
 import math
 import numpy as np
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
 import gym
 import gym_wizards
 
-# import the environment
+HIDDEN_SIZE = 48 # size of hidden layer
+
+## CREATE THE NEURAL NETWORK
+
+class Net(nn.Module):
+    def __init__(self, obs_size, act_size):
+        super(Net, self).__init__()
+
+        self.common = nn.Sequential(
+            nn.Linear(obs_size, HID_SIZE),
+            nn.ReLU(),
+        )
+        self.action = nn.Sequential(
+            nn.Linear(HID_SIZE, act_size),
+            nn.Softmax(),  # Put in dimension to Softmax(dim=0 or dim=1)?
+        )
+        self.critic = nn.Linear(HID_SIZE, 1)
+
+    def forward(self, x):
+        common_out = self.common(x.unsqueeze(dim=1))
+        return self.mu(common_out), self.var(common_out), self.value(common_out)
+
+# load the environment
 env = gym.make("field2d-v0")
+obs_size = env.observation_space.shape[0] # 2 # just the x and y positions
+n_actions = env.action_space.n # 9  # kings moves plus stay in place
 
-# cleanup: delete the TF model if it is haning around
-try:
-    del model
-except:
-    pass
-
-
-# set up the model
-num_hidden = 48 # size of hidden layer
-num_inputs = env.observation_space.shape[0] # 2 # just the x and y positions
-num_actions = env.action_space.n # 9  # kings moves plus stay in place
-
-inputs = layers.Input(shape=(num_inputs,))
-common = layers.Dense(num_hidden, activation="relu")(inputs)
-action = layers.Dense(num_actions, activation="softmax", name="action")(common)
-critic = layers.Dense(1,name="critic")(common)
-
-model = keras.Model(inputs=inputs, outputs=[action, critic])
+# inputs = layers.Input(shape=(num_inputs,))
+# common = layers.Dense(HIDDEN_SIZE, activation="relu")(inputs)
+# action = layers.Dense(num_actions, activation="softmax", name="action")(common)
+# critic = layers.Dense(1,name="critic")(common)
+#
+# model = keras.Model(inputs=inputs, outputs=[action, critic])
 
 optimizer = keras.optimizers.Adam(learning_rate=0.005)
 huber_loss = keras.losses.Huber()
