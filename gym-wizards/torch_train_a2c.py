@@ -24,23 +24,23 @@ GAMMA = .9  # Discount factor for rewards
 
 ## CREATE THE NEURAL NETWORK
 
-class Model(nn.Module):
+class Model(torch.nn.Module):
     def __init__(self, obs_size, n_actions):
         super(Model, self).__init__()
 
-        self.common = nn.Sequential(
-            nn.Linear(obs_size, HID_SIZE),
-            nn.ReLU(),
+        self.common = torch.nn.Sequential(
+            torch.nn.Linear(obs_size, HIDDEN_SIZE),
+            torch.nn.ReLU(),
         )
-        self.action = nn.Sequential(
-            nn.Linear(HID_SIZE, n_actions),
-            nn.Softmax(dim=1),  # TODO Put in dimension to Softmax(dim=0 or dim=1)?
+        self.action = torch.nn.Sequential(
+            torch.nn.Linear(HIDDEN_SIZE, n_actions),
+            # torch.nn.Softmax(dim=0),  # Softmax taken in self.forward()
         )
-        self.critic = nn.Linear(HID_SIZE, 1)
+        self.critic = torch.nn.Linear(HIDDEN_SIZE, 1)
 
     def forward(self, inputs):
-        common_out = self.common(inputs.unsqueeze(dim=1))  # TODO is unsqueeze needed`
-        return self.action(common_out), self.value(common_out)
+        common_out = self.common(inputs.unsqueeze(dim=1))
+        return torch.nn.Softmax(dim=0)(self.action(common_out)[0][0]), self.critic(common_out)
 
 # inputs = layers.Input(shape=(num_inputs,))
 # common = layers.Dense(HIDDEN_SIZE, activation="relu")(inputs)
@@ -55,7 +55,7 @@ model = Model(obs_size, n_actions)
 # model = keras.Model(inputs=inputs, outputs=[action, critic])
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 # optimizer = keras.optimizers.Adam(learning_rate=0.005)
-huber_loss = torch.nn.HuberLoss()
+huber_loss = torch.nn.modules.loss.SmoothL1Loss()  # same as torch.nn.HuberLoss() but still available
 # huber_loss = keras.losses.Huber()
 
 action_probs_history = []
@@ -82,12 +82,12 @@ for episode in range(EPISODES):
         critic_value = critic_value_v.squeeze(dim=0).data.cpu().numpy()  # TODO is the squeeze necessary?
 
         # action_probs, critic_value = model(curr_st_array)
-        critic_value_history.append(critic_value)
+        critic_value_history.append(critic_value_v)
         # critic_value_history.append(critic_value[0, 0])  TODO is subscipting still necessary
 
         # sample action from probability distribution
-        action = np.random.choice(num_actions, p=np.squeeze(action_probs))  # TODO squeeze necessary?
-        action_probs_history.append(tf.math.log(action_probs[0, action]))  # TODO indexing correct?
+        action = np.random.choice(n_actions, p=np.squeeze(action_probs))  # TODO squeeze necessary?
+        action_probs_history.append(math.log(action_probs[action]))  # TODO indexing correct?
 
         state, reward, done, _ = env.step(action)
 
@@ -133,37 +133,37 @@ for episode in range(EPISODES):
 
         # The critic must be updated so that it predicts a better estimate of
         # the future rewards.
-        critic_losses.append(huber_loss(critic_val, normed_cum_disc_rew, 0))  # TODO Probably need to massage dimensions but I don't know how)
+        critic_losses.append(huber_loss(critic_val, torch.FloatTensor([normed_cum_disc_rew])))  # TODO Probably need to massage dimensions but I don't know how)
         # critic_losses.append(
         #    huber_loss(tf.expand_dims(critic_val, 0), tf.expand_dims(normed_cum_disc_rew, 0))
         # )
         # NEW: loss_value_v = huber_loss(critic_v.unsqueeze(dim=-1), vals_ref_v)
-                '''OLD OLD OLD
-                adv_v = vals_ref_v.unsqueeze(dim=-1) - value_v.detach()
-                log_prob_v = adv_v * calc_logprob(mu_v, var_v, actions_v)
-                loss_policy_v = -log_prob_v.mean()
-                ent_v = -(torch.log(2*math.pi*var_v) + 1)/2
-                entropy_loss_v = ENTROPY_BETA * ent_v.mean()
+        '''OLD OLD OLD
+        adv_v = vals_ref_v.unsqueeze(dim=-1) - value_v.detach()
+        log_prob_v = adv_v * calc_logprob(mu_v, var_v, actions_v)
+        loss_policy_v = -log_prob_v.mean()
+        ent_v = -(torch.log(2*math.pi*var_v) + 1)/2
+        entropy_loss_v = ENTROPY_BETA * ent_v.mean()
 
-                loss_v = loss_policy_v + entropy_loss_v + loss_value_v
-                loss_v.backward()
-                optimizer.step()
+        loss_v = loss_policy_v + entropy_loss_v + loss_value_v
+        loss_v.backward()
+        optimizer.step()
 
 
-                optimizer.zero_grad()
-                mu_v, var_v, value_v = net(states_v)
+        optimizer.zero_grad()
+        mu_v, var_v, value_v = net(states_v)
 
-                loss_value_v = F.mse_loss(value_v.squeeze(-1), vals_ref_v)
+        loss_value_v = F.mse_loss(value_v.squeeze(-1), vals_ref_v)
 
-                adv_v = vals_ref_v.unsqueeze(dim=-1) - value_v.detach()
-                log_prob_v = adv_v * calc_logprob(mu_v, var_v, actions_v)
-                loss_policy_v = -log_prob_v.mean()
-                ent_v = -(torch.log(2*math.pi*var_v) + 1)/2
-                entropy_loss_v = ENTROPY_BETA * ent_v.mean()
+        adv_v = vals_ref_v.unsqueeze(dim=-1) - value_v.detach()
+        log_prob_v = adv_v * calc_logprob(mu_v, var_v, actions_v)
+        loss_policy_v = -log_prob_v.mean()
+        ent_v = -(torch.log(2*math.pi*var_v) + 1)/2
+        entropy_loss_v = ENTROPY_BETA * ent_v.mean()
 
-                loss_v = loss_policy_v + entropy_loss_v + loss_value_v
-                loss_v.backward()
-                optimizer.step()'''
+        loss_v = loss_policy_v + entropy_loss_v + loss_value_v
+        loss_v.backward()
+        optimizer.step()'''
     # TODO Incredulous that this will work
     # Backpropagation
     overall_loss_value = sum(actor_losses) + sum(critic_losses)
