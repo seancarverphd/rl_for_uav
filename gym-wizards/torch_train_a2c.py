@@ -20,7 +20,7 @@ DEVICE = "cpu"
 HIDDEN_SIZE = 48 # size of hidden layer
 LEARNING_RATE = 0.005
 EPISODES = 5000  # Really this is number of singleton batches
-STEPS_PER_EPISODE = 30
+# NOW SET IN ENVIRONMENT:  STEPS_PER_EPISODE = 30
 GAMMA = .9  # Discount factor for rewards
 
 ## CREATE THE NEURAL NETWORK
@@ -43,11 +43,6 @@ class Model(torch.nn.Module):
         common_out = self.common(inputs.unsqueeze(dim=1))
         return torch.nn.Softmax(dim=0)(self.action(common_out)[0][0]), self.critic(common_out)
 
-# inputs = layers.Input(shape=(num_inputs,))
-# common = layers.Dense(HIDDEN_SIZE, activation="relu")(inputs)
-# action = layers.Dense(num_actions, activation="softmax", name="action")(common)
-# critic = layers.Dense(1,name="critic")(common)
-
 # load the environment and model
 env = gym.make(ENV)
 obs_size = env.observation_space.shape[0] # 2 # just the x and y positions
@@ -64,9 +59,9 @@ best = None
 for episode in range(EPISODES):
     state = env.reset()
     episode_reward = 0
-    # done = False  # TODO Uncomment for while not done
-    # while not done:  # better to let the environment count the steps as with some problems the number can be variable 
-    for step in range(STEPS_PER_EPISODE):
+    done = False  # TODO Uncomment for while not done
+    while not done:  # better to let the environment count the steps as with some problems the number can be variable 
+    # for step in range(STEPS_PER_EPISODE):
         # Take a step using the learned policy
         state_v = torch.FloatTensor([state])  # TODO comment still good?:  creates a tensor of shape=[1, n_obs]: list from input needed for shape
         state_v = state_v.to(DEVICE)
@@ -115,7 +110,7 @@ for episode in range(EPISODES):
         actor_losses.append(-log_prob * diff)  # actor loss
 
         # The critic must be updated so that it predicts a better estimate of the future rewards.
-        critic_losses.append(huber_loss(critic_val, torch.FloatTensor([normed_cum_disc_rew])))  # TODO Probably need to massage dimensions but I don't know how)
+        critic_losses.append(huber_loss(critic_val[0][0], torch.FloatTensor([normed_cum_disc_rew])))
         '''======= OLD ============
         optimizer.zero_grad()
         mu_v, var_v, value_v = net(states_v)

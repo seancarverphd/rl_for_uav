@@ -1,6 +1,8 @@
 import numpy as np
 import gym
 
+MAX_STEPS = 30
+
 class Field2D(gym.Env):  # To use Gym inherit from gym.Env
     def __init__(self):
         self.opt_x = 5.
@@ -48,7 +50,7 @@ class Field2D(gym.Env):  # To use Gym inherit from gym.Env
         self.n += 1
         obs = [self.x, self.y]
         reward = self.reward_func()
-        done = (self.n >= 15)
+        done = (self.n >= MAX_STEPS)
         info = {}
         return obs, reward, done, info
 
