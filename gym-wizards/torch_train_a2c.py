@@ -14,7 +14,7 @@ import numpy as np
 import gym
 import gym_wizards
 
-ENV = "field2d-v0"
+ENV = "CartPole-v1" # "field1d-v0" # "field2d-v0"
 DEVICE = "cpu"
 HIDDEN_SIZE = 48 # size of hidden layer
 LEARNING_RATE = 0.005
