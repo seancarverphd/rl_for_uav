@@ -15,12 +15,13 @@ import gym
 import gym_wizards
 
 # ENV = "CartPole-v1" # "field1d-v0" # "field2d-v0"
-ENV = "field1d-v0"
+ENV = "field2d-v0"
 DEVICE = "cpu"
 HIDDEN_SIZE = 48 # size of hidden layer
 LEARNING_RATE = 0.005
 EPISODES = 5000  # Really this is number of singleton batches
-# NOW SET IN ENVIRONMENT:  STEPS_PER_EPISODE = 30
+STEPS_PER_EPISODE = 30  # Does not apply to CartPole (variable)
+SET_STEPS = True  # True if environment has a self.max_steps attribute and you want to set it to STEPS_PER_EPISODE
 GAMMA = .9  # Discount factor for rewards
 
 ## CREATE THE NEURAL NETWORK
@@ -45,6 +46,8 @@ class Model(torch.nn.Module):
 
 # load the environment and model
 env = gym.make(ENV)
+if SET_STEPS:
+    env.max_steps = STEPS_PER_EPISODE
 obs_size = env.observation_space.shape[0] # 2 # just the x and y positions
 n_actions = env.action_space.n # 9  # kings moves plus stay-in-place
 model = Model(obs_size, n_actions)
