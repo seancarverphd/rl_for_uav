@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # adapted wholesale from https://keras.io/examples/rl/actor_critic_cartpole/
 
 # imports
@@ -8,13 +9,13 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-
+import gym
+import gym_wizards
 
 # import the environment
-from field1d import Field1D  # from oneDwork_week1.field1d import Field1D
-env = Field1D()
+env = gym.make("field2d-v0")
 
-# cleanup: delete the TF model if it is hanging around
+# cleanup: delete the TF model if it is haning around
 try:
     del model
 except:
@@ -23,8 +24,8 @@ except:
 
 # set up the model
 num_hidden = 48 # size of hidden layer
-num_inputs = 1 # just the x position
-num_actions = 3  # left, stay in same place, right
+num_inputs = env.observation_space.shape[0] # 2 # just the x and y positions
+num_actions = env.action_space.n # 9  # kings moves plus stay in place
 
 inputs = layers.Input(shape=(num_inputs,))
 common = layers.Dense(num_hidden, activation="relu")(inputs)
@@ -33,13 +34,13 @@ critic = layers.Dense(1,name="critic")(common)
 
 model = keras.Model(inputs=inputs, outputs=[action, critic])
 
-optimizer = keras.optimizers.Adam(learning_rate=0.0005)
+optimizer = keras.optimizers.Adam(learning_rate=0.005)
 huber_loss = keras.losses.Huber()
 
 
 EPISODES = 5000
 STEPS_PER_EPISODE = 30
-gamma = .8  # Discount factor for rewards
+gamma = .9  # Discount factor for rewards
 
 action_probs_history = []
 critic_value_history = []
@@ -62,17 +63,18 @@ for episode in range(EPISODES):
             action = np.random.choice(num_actions, p=np.squeeze(action_probs))
             action_probs_history.append(tf.math.log(action_probs[0, action]))
 
-            # re-map action from 0,1,2 to -1,0,1, as per environment's requirement
-            movement = action - 1
-
-            state, reward, done, _ = env.step(movement)
+            state, reward, done, _ = env.step(action)
 
             rewards_history.append(reward)
             episode_reward += reward
 
-        #print(state) # casually examine the final state of each episode, should approach 5
-        if episode % 50 == 0:
-            env.render()
+        if best is None or best < episode_reward:
+            best = episode_reward
+            beststr = "BEST"
+        else:
+            beststr = ''
+
+        print(state, "Cumulative reward:", episode_reward, beststr) # casually examine the final state of each episode, should approach:  [5, 5]
 
         # store the cumulative, discounted rewards
         cumulative_discounted_rewards = []
@@ -85,10 +87,6 @@ for episode in range(EPISODES):
         cumulative_discounted_rewards = np.array(cumulative_discounted_rewards)
         normalized_cumulative_discounted_rewards = (cumulative_discounted_rewards - np.mean(cumulative_discounted_rewards)) / (np.std(cumulative_discounted_rewards) + 0.000001)
         normalized_cumulative_discounted_rewards = normalized_cumulative_discounted_rewards.tolist()
-
-        #cumulative_discounted_rewards = np.array(cumulative_discounted_rewards)
-        #normalized_cumulative_discounted_rewards = cumulative_discounted_rewards / 100.0
-        #normalized_cumulative_discounted_rewards = normalized_cumulative_discounted_rewards.tolist()
 
         history = zip(action_probs_history, critic_value_history, normalized_cumulative_discounted_rewards)
         actor_losses = []
@@ -110,8 +108,8 @@ for episode in range(EPISODES):
 
         # Backpropagation
         overall_loss_value = sum(actor_losses) + sum(critic_losses)
-        gradients = tape.gradient(overall_loss_value, model.trainable_variables)
-        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+        gradientss = tape.gradient(overall_loss_value, model.trainable_variables)
+        optimizer.apply_gradients(zip(gradientss, model.trainable_variables))
 
         # Clear the loss and reward history for next episode
         action_probs_history.clear()
