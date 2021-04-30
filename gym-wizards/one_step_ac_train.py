@@ -16,33 +16,45 @@ import gym_wizards
 
 # ENV = "CartPole-v1" # "field1d-v0" # "field2d-v0"
 ENV = "field2d-v0"
-DEVICE = "cpu"
-HIDDEN_SIZE = 48 # size of hidden layer
-LEARNING_RATE = 0.005
-EPISODES = 5000  # Really this is number of singleton batches
 STEPS_PER_EPISODE = 30  # Does not apply to CartPole (variable)
 SET_STEPS = True  # True if environment has a self.max_steps attribute and you want to set it to STEPS_PER_EPISODE
+DEVICE = "cpu"
+HIDDEN_SIZE = 48 # size of hidden layer
+ACTOR_LEARNING_RATE = 0.005
+CRITIC_LEARNING_RATE = 0.005
+EPISODES = 5000  # Really this is number of singleton batches
 GAMMA = .9  # Discount factor for rewards
 
 ## CREATE THE NEURAL NETWORK
 
-class Model(torch.nn.Module):
+class Actor(torch.nn.Module):
     def __init__(self, obs_size, n_actions):
-        super(Model, self).__init__()
+        super(Actor, self).__init__()
 
-        self.common = torch.nn.Sequential(
+        self.actor = torch.nn.Sequential(
             torch.nn.Linear(obs_size, HIDDEN_SIZE),
             torch.nn.ReLU(),
-        )
-        self.action = torch.nn.Sequential(
             torch.nn.Linear(HIDDEN_SIZE, n_actions),
             # torch.nn.Softmax(dim=0),  # Softmax taken in self.forward()
         )
-        self.critic = torch.nn.Linear(HIDDEN_SIZE, 1)
 
     def forward(self, inputs):
-        common_out = self.common(inputs.unsqueeze(dim=1))
-        return torch.nn.Softmax(dim=0)(self.action(common_out)[0][0]), self.critic(common_out)
+        actor_out = self.actor(inputs.unsqueeze(dim=1))
+        return torch.nn.Softmax(dim=0)(actor_out[0][0])
+
+class Critic(torch.nn.Module):
+    def __init__(self, obs_size, n_actions):
+        super(Critic, self).__init__()
+
+        self.critic = torch.nn.Sequential(
+            torch.nn.Linear(obs_size, HIDDEN_SIZE),
+            torch.nn.ReLU(),
+            torch.nn.Linear(HIDDEN_SIZE, 1),
+        )
+
+    def forward(self, inputs):
+        critic_out = self.critic(inputs.unsqueeze(dim=1))
+        return critic_out
 
 # load the environment and model
 env = gym.make(ENV)
@@ -50,8 +62,11 @@ if SET_STEPS:
     env.max_steps = STEPS_PER_EPISODE
 obs_size = env.observation_space.shape[0] # 2 # just the x and y positions
 n_actions = env.action_space.n # 9  # kings moves plus stay-in-place
-model = Model(obs_size, n_actions)
-optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+actor = Actor(obs_size, n_actions)
+critic = Critic(obs_size, n_actions)
+'''
+actor_optimizer = torch.optim.SGD(actor.parameters(), lr=ACTOR_LEARNING_RATE)
+critic_optimizer = torch.optim.SGD(critic.parameters(), lr=CRITIC_LEARNING_RATE)
 huber_loss = torch.nn.modules.loss.SmoothL1Loss()  # same as torch.nn.HuberLoss() but still available
 
 action_probs_history = []
@@ -114,7 +129,7 @@ for episode in range(EPISODES):
 
         # The critic must be updated so that it predicts a better estimate of the future rewards.
         critic_losses.append(huber_loss(critic_val[0][0], torch.FloatTensor([normed_cum_disc_rew])))
-        '''======= OLD ============
+        ''' '''======= OLD ============
         optimizer.zero_grad()
         mu_v, var_v, value_v = net(states_v)
         loss_value_v = F.mse_loss(value_v.squeeze(-1), vals_ref_v)
@@ -125,7 +140,7 @@ for episode in range(EPISODES):
         entropy_loss_v = ENTROPY_BETA * ent_v.mean()
         loss_v = loss_policy_v + entropy_loss_v + loss_value_v
         loss_v.backward()
-        optimizer.step()'''
+        optimizer.step()''' '''
 
     # Backpropagation
     overall_loss_value = sum(actor_losses) + sum(critic_losses)
@@ -136,4 +151,4 @@ for episode in range(EPISODES):
     action_probs_history.clear()
     critic_value_history.clear()
     rewards_history.clear()
-
+'''
