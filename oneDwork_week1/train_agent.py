@@ -14,7 +14,7 @@ from tensorflow.keras import layers
 from field1d import Field1D  # from oneDwork_week1.field1d import Field1D
 env = Field1D()
 
-# cleanup: delete the TF model if it is haning around
+# cleanup: delete the TF model if it is hanging around
 try:
     del model
 except:
@@ -33,13 +33,13 @@ critic = layers.Dense(1,name="critic")(common)
 
 model = keras.Model(inputs=inputs, outputs=[action, critic])
 
-optimizer = keras.optimizers.Adam(learning_rate=0.005)
+optimizer = keras.optimizers.Adam(learning_rate=0.0005)
 huber_loss = keras.losses.Huber()
 
 
 EPISODES = 5000
 STEPS_PER_EPISODE = 30
-gamma = .9  # Discount factor for rewards
+gamma = .8  # Discount factor for rewards
 
 action_probs_history = []
 critic_value_history = []
@@ -70,13 +70,9 @@ for episode in range(EPISODES):
             rewards_history.append(reward)
             episode_reward += reward
 
-        if best is None or best < episode_reward:
-            best = episode_reward
-            beststr = "BEST"
-        else:
-            beststr = ''
-
-        print(state, "Cumulative reward:", episode_reward, beststr) # casually examine the final state of each episode, should approach: 5
+        #print(state) # casually examine the final state of each episode, should approach 5
+        if episode % 50 == 0:
+            env.render()
 
         # store the cumulative, discounted rewards
         cumulative_discounted_rewards = []
@@ -89,6 +85,10 @@ for episode in range(EPISODES):
         cumulative_discounted_rewards = np.array(cumulative_discounted_rewards)
         normalized_cumulative_discounted_rewards = (cumulative_discounted_rewards - np.mean(cumulative_discounted_rewards)) / (np.std(cumulative_discounted_rewards) + 0.000001)
         normalized_cumulative_discounted_rewards = normalized_cumulative_discounted_rewards.tolist()
+
+        #cumulative_discounted_rewards = np.array(cumulative_discounted_rewards)
+        #normalized_cumulative_discounted_rewards = cumulative_discounted_rewards / 100.0
+        #normalized_cumulative_discounted_rewards = normalized_cumulative_discounted_rewards.tolist()
 
         history = zip(action_probs_history, critic_value_history, normalized_cumulative_discounted_rewards)
         actor_losses = []
@@ -110,8 +110,8 @@ for episode in range(EPISODES):
 
         # Backpropagation
         overall_loss_value = sum(actor_losses) + sum(critic_losses)
-        gradientss = tape.gradient(overall_loss_value, model.trainable_variables)
-        optimizer.apply_gradients(zip(gradientss, model.trainable_variables))
+        gradients = tape.gradient(overall_loss_value, model.trainable_variables)
+        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
         # Clear the loss and reward history for next episode
         action_probs_history.clear()
