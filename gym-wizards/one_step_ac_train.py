@@ -64,10 +64,10 @@ obs_size = env.observation_space.shape[0] # 2 # just the x and y positions
 n_actions = env.action_space.n # 9  # kings moves plus stay-in-place
 actor = Actor(obs_size, n_actions)
 critic = Critic(obs_size, n_actions)
-'''
 actor_optimizer = torch.optim.SGD(actor.parameters(), lr=ACTOR_LEARNING_RATE)
 critic_optimizer = torch.optim.SGD(critic.parameters(), lr=CRITIC_LEARNING_RATE)
-huber_loss = torch.nn.modules.loss.SmoothL1Loss()  # same as torch.nn.HuberLoss() but still available
+huber_loss_actor = torch.nn.modules.loss.SmoothL1Loss()  # same as torch.nn.HuberLoss() but still available
+huber_loss_critic = torch.nn.modules.loss.SmoothL1Loss()  # same as torch.nn.HuberLoss() but still available
 
 action_probs_history = []
 critic_value_history = []
@@ -117,7 +117,8 @@ for episode in range(EPISODES):
     history = zip(action_probs_history, critic_value_history, normalized_cumulative_discounted_rewards)
     actor_losses = []
     critic_losses = []
-    optimizer.zero_grad()  # TODO Is this where it needs to be?
+    actor_optimizer.zero_grad()  # TODO Is this where it needs to be?
+    critic_optimizer.zero_grad()  # TODO Is this where it needs to be?
     for log_prob, critic_val, normed_cum_disc_rew in history:
         # At this point in history, the critic estimated that we would get a
         # total reward = `value` in the future. We took an action with log probability
@@ -129,7 +130,7 @@ for episode in range(EPISODES):
 
         # The critic must be updated so that it predicts a better estimate of the future rewards.
         critic_losses.append(huber_loss(critic_val[0][0], torch.FloatTensor([normed_cum_disc_rew])))
-        ''' '''======= OLD ============
+        '''======= OLD ============
         optimizer.zero_grad()
         mu_v, var_v, value_v = net(states_v)
         loss_value_v = F.mse_loss(value_v.squeeze(-1), vals_ref_v)
@@ -140,15 +141,20 @@ for episode in range(EPISODES):
         entropy_loss_v = ENTROPY_BETA * ent_v.mean()
         loss_v = loss_policy_v + entropy_loss_v + loss_value_v
         loss_v.backward()
-        optimizer.step()''' '''
+        optimizer.step()'''
 
     # Backpropagation
-    overall_loss_value = sum(actor_losses) + sum(critic_losses)
-    overall_loss_value.backward()
-    optimizer.step()
+    # overall_loss_value = sum(actor_losses) + sum(critic_losses)
+    sum_actor_losses = sum(actor_losses)
+    sum_critic_losses = sum(critic_losses)
+    # overall_loss_value.backward()
+    sum_actor_losses.backward()
+    sum_critic_losses.backward()
+    # optimizer.step()
+    actor_optimizer.step()
+    critic_optimizer.step()
 
     # Reset env and clear the loss and reward history for next episode
     action_probs_history.clear()
     critic_value_history.clear()
     rewards_history.clear()
-'''
