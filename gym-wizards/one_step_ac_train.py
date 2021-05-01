@@ -15,7 +15,7 @@ import gym
 import gym_wizards
 
 # ENV = "CartPole-v1" # "field1d-v0" # "field2d-v0"
-ENV = "field2d-v0"
+ENV = "field1d-v0"
 STEPS_PER_EPISODE = 30  # Does not apply to CartPole (variable)
 SET_STEPS = True  # True if environment has a self.max_steps attribute and you want to set it to STEPS_PER_EPISODE
 DEVICE = "cpu"
@@ -130,7 +130,7 @@ for episode in range(EPISODES):
         actor_losses.append(-log_prob * diff)  # actor loss
 
         # The critic must be updated so that it predicts a better estimate of the future rewards.
-        critic_losses.append(huber_loss(critic_val[0][0], torch.FloatTensor([normed_cum_disc_rew])))
+        critic_losses.append(huber_loss_critic(critic_val[0][0], torch.FloatTensor([normed_cum_disc_rew])))
         '''======= OLD ============
         optimizer.zero_grad()
         mu_v, var_v, value_v = net(states_v)
@@ -149,8 +149,8 @@ for episode in range(EPISODES):
     sum_actor_losses = sum(actor_losses)
     sum_critic_losses = sum(critic_losses)
     # overall_loss_value.backward()
-    sum_actor_losses.backward()
-    sum_critic_losses.backward()
+    sum_actor_losses.backward(retain_graph=True)
+    sum_critic_losses.backward(retain_graph=True)
     # optimizer.step()
     actor_optimizer.step()
     critic_optimizer.step()
