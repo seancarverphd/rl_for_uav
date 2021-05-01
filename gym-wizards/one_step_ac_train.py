@@ -83,7 +83,8 @@ for episode in range(EPISODES):
         # Take a step using the learned policy
         state_v = torch.FloatTensor([state])  # TODO comment still good?:  creates a tensor of shape=[1, n_obs]: list from input needed for shape
         state_v = state_v.to(DEVICE)
-        action_probs_v, critic_value_v = model(state_v)
+        action_probs_v = actor(state_v)
+        critic_value_v = critic(state_v)
         action_probs = action_probs_v.squeeze(dim=0).data.cpu().numpy()  # TODO is the squeeze necessary?
         critic_value = critic_value_v.squeeze(dim=0).data.cpu().numpy()  # TODO is the squeeze necessary?
         critic_value_history.append(critic_value_v)
