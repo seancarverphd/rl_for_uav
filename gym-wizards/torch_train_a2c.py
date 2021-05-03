@@ -24,6 +24,8 @@ STEPS_PER_EPISODE = 30  # Does not apply to CartPole (variable)
 SET_STEPS = True  # True if environment has a self.max_steps attribute and you want to set it to STEPS_PER_EPISODE
 GAMMA = .9  # Discount factor for rewards
 
+torch.autograd.set_detect_anomaly(True)
+
 ## CREATE THE NEURAL NETWORK
 
 class Model(torch.nn.Module):
@@ -105,56 +107,55 @@ class Agent():
                 beststr = ''
             print(self.state, "Cumulative reward:", self.episode_reward, beststr) # examine the final state of each episode plus more
 
-        # store the cumulative, discounted rewards
-        cumulative_discounted_rewards = []
-        discounted_sum = 0
-        for r in self.rewards_history[::-1]:
-            discounted_sum = r + GAMMA * discounted_sum
-            cumulative_discounted_rewards.insert(0, discounted_sum)
+            # store the cumulative, discounted rewards
+            cumulative_discounted_rewards = []
+            discounted_sum = 0
+            for r in self.rewards_history[::-1]:
+                discounted_sum = r + GAMMA * discounted_sum
+                cumulative_discounted_rewards.insert(0, discounted_sum)
 
-        # Normalize the cumulative, discounted reward history
-        # TODO  Test.  I am suspicous of the next three lines.  Better, I think, to standardize batches than episodes
-        cumulative_discounted_rewards = np.array(cumulative_discounted_rewards)
-        normalized_cumulative_discounted_rewards = (cumulative_discounted_rewards - np.mean(cumulative_discounted_rewards)) / (np.std(cumulative_discounted_rewards) + 0.000001)
-        normalized_cumulative_discounted_rewards = normalized_cumulative_discounted_rewards.tolist()
+            # Normalize the cumulative, discounted reward history
+            cumulative_discounted_rewards = np.array(cumulative_discounted_rewards)
+            normalized_cumulative_discounted_rewards = (cumulative_discounted_rewards - np.mean(cumulative_discounted_rewards)) / (np.std(cumulative_discounted_rewards) + 0.000001)
+            normalized_cumulative_discounted_rewards = normalized_cumulative_discounted_rewards.tolist()
 
-        history = zip(self.action_probs_history, self.critic_value_v_history, normalized_cumulative_discounted_rewards)
-        actor_losses = []
-        critic_losses = []
-        self.optimizer.zero_grad()  # TODO Is this where it needs to be?
-        for log_prob, critic_val, normed_cum_disc_rew in history:
-            # At this point in history, the critic estimated that we would get a
-            # total reward = `value` in the future. We took an action with log probability
-            # of `log_prob` and ended up recieving a total reward = `ret`.
-            # The actor must be updated so that it predicts an action that leads to
-            # high rewards (compared to critic's estimate) with high probability.
-            diff = normed_cum_disc_rew - critic_val
-            actor_losses.append(-log_prob * diff)  # actor loss
+            history = zip(self.action_probs_history, self.critic_value_v_history, normalized_cumulative_discounted_rewards)
+            actor_losses = []
+            critic_losses = []
+            self.optimizer.zero_grad()  # TODO Is this where it needs to be?
+            for log_prob, critic_val, normed_cum_disc_rew in history:
+                # At this point in history, the critic estimated that we would get a
+                # total reward = `value` in the future. We took an action with log probability
+                # of `log_prob` and ended up recieving a total reward = `ret`.
+                # The actor must be updated so that it predicts an action that leads to
+                # high rewards (compared to critic's estimate) with high probability.
+                diff = normed_cum_disc_rew - critic_val
+                actor_losses.append(-log_prob * diff)  # actor loss
 
-            # The critic must be updated so that it predicts a better estimate of the future rewards.
-            critic_losses.append(self.huber_loss(critic_val[0][0], torch.FloatTensor([normed_cum_disc_rew])))
-            '''======= OLD ============
-            self.optimizer.zero_grad()
-            mu_v, var_v, value_v = net(states_v)
-            loss_value_v = F.mse_loss(value_v.squeeze(-1), vals_ref_v)
-            adv_v = vals_ref_v.unsqueeze(dim=-1) - value_v.detach()
-            log_prob_v = adv_v * calc_logprob(mu_v, var_v, actions_v)
-            loss_policy_v = -log_prob_v.mean()
-            ent_v = -(torch.log(2*math.pi*var_v) + 1)/2
-            entropy_loss_v = ENTROPY_BETA * ent_v.mean()
-            loss_v = loss_policy_v + entropy_loss_v + loss_value_v
-            loss_v.backward()
-            self.optimizer.step()'''
+                # The critic must be updated so that it predicts a better estimate of the future rewards.
+                critic_losses.append(self.huber_loss(critic_val[0][0], torch.FloatTensor([normed_cum_disc_rew])))
+                '''======= OLD ============
+                self.optimizer.zero_grad()
+                mu_v, var_v, value_v = net(states_v)
+                loss_value_v = F.mse_loss(value_v.squeeze(-1), vals_ref_v)
+                adv_v = vals_ref_v.unsqueeze(dim=-1) - value_v.detach()
+                log_prob_v = adv_v * calc_logprob(mu_v, var_v, actions_v)
+                loss_policy_v = -log_prob_v.mean()
+                ent_v = -(torch.log(2*math.pi*var_v) + 1)/2
+                entropy_loss_v = ENTROPY_BETA * ent_v.mean()
+                loss_v = loss_policy_v + entropy_loss_v + loss_value_v
+                loss_v.backward()
+                self.optimizer.step()'''
 
-        # Backpropagation
-        overall_loss_value = sum(actor_losses) + sum(critic_losses)
-        overall_loss_value.backward()
-        self.optimizer.step()
+            # Backpropagation
+            overall_loss_value = sum(actor_losses) + sum(critic_losses)
+            overall_loss_value.backward(retain_graph=True)
+            self.optimizer.step()
 
-        # Reset env and clear the loss and reward history for next episode
-        self.action_probs_history.clear()
-        self.critic_value_history.clear()
-        self.rewards_history.clear()
+            # Reset env and clear the loss and reward history for next episode
+            self.action_probs_history.clear()
+            self.critic_value_history.clear()
+            self.rewards_history.clear()
 
 if __name__ == '__main__':
     A = Agent()
