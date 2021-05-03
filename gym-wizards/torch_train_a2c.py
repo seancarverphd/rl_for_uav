@@ -86,18 +86,20 @@ class Agent():
             self.state, reward, done, _ = self.env.step(self.action)
             self.record_reward(reward)
 
-    def batch(self):
+    def batch_init(self):
         self.action_probs_history = []
         self.critic_value_history = []
         self.critic_value_v_history = []
         self.rewards_history = []
-        best = None
+        self.best = None
 
+    def batch(self):
+        self.batch_init()
         for episode in range(EPISODES):
             self.episode()
             ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
-            if best is None or best < self.episode_reward:
-                best = self.episode_reward
+            if self.best is None or self.best < self.episode_reward:
+                self.best = self.episode_reward
                 beststr = "BEST"
             else:
                 beststr = ''
