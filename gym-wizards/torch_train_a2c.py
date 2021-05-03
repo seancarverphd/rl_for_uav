@@ -59,11 +59,20 @@ class Agent():
     def choose_action(self, state):
         state_v = torch.FloatTensor([self.state])  # TODO comment still good?:  creates a tensor of shape=[1, n_obs]: list from input needed for shape
         state_v = state_v.to(DEVICE)
-        action_probs_v, self.critic_value_v = self.model(state_v)
-        self.action_probs = action_probs_v.squeeze(dim=0).data.cpu().numpy()  # TODO is the squeeze necessary?
-        self.critic_value = self.critic_value_v.squeeze(dim=0).data.cpu().numpy()  # TODO is the squeeze necessary?
-        action = np.random.choice(self.n_actions, p=np.squeeze(self.action_probs))  # sample action from probability distribution  # TODO squeeze necessary?
+        self.action_probs_v, self.critic_value_v = self.model(state_v)
+        self.action_probs = self.action_probs_v.squeeze(dim=0).data.cpu().numpy()
+        self.critic_value = self.critic_value_v.squeeze(dim=0).data.cpu().numpy()
+        action = np.random.choice(self.n_actions, p=np.squeeze(self.action_probs))
         return action
+
+    def record_model_output(self):
+        self.action_probs_history.append(math.log(self.action_probs[self.action]))  # TODO indexing correct?
+        self.critic_value_v_history.append(self.critic_value_v)
+        self.critic_value_history.append(self.critic_value)
+
+    def record_reward(self, reward):
+        self.rewards_history.append(reward)
+        self.episode_reward += reward
 
     def episode(self):
         self.state = self.env.reset()
@@ -73,12 +82,9 @@ class Agent():
         # for step in range(STEPS_PER_EPISODE):
             # Take a step using the learned policy
             self.action = self.choose_action(self.state)
-            self.action_probs_history.append(math.log(self.action_probs[self.action]))  # TODO indexing correct?
-            self.critic_value_v_history.append(self.critic_value_v)
-            self.critic_value_history.append(self.critic_value)
+            self.record_model_output()
             self.state, reward, done, _ = self.env.step(self.action)
-            self.rewards_history.append(reward)
-            self.episode_reward += reward
+            self.record_reward(reward)
 
     def batch(self):
         self.action_probs_history = []
