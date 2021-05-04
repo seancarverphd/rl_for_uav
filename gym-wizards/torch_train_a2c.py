@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 # adapted wholesale from https://keras.io/examples/rl/actor_critic_cartpole/ then adapted for PyTorch
 
-import torch
-import math
-import numpy as np
 import gym
 import gym_wizards
+import math
+import numpy as np
+import time
+import torch
 
 # ENV = "CartPole-v1" # "field1d-v0" # "field2d-v0"
-ENV = "field2d-v0"
+ENV = "field1d-v0"
 DEVICE = "cpu"
 HIDDEN_SIZE = 48 # size of hidden layer
 LEARNING_RATE = 0.005
-EPISODES = 5000  # Really this is number of singleton batches
+EPISODES = 500  # Really this is number of singleton batches
 STEPS_PER_EPISODE = 30  # Does not apply to CartPole (variable)
 SET_STEPS = True  # True if environment has a self.max_steps attribute and you want to set it to STEPS_PER_EPISODE
 GAMMA = .9  # Discount factor for rewards
@@ -143,6 +144,7 @@ class Agent():
             ### NOW DO ANOTHER EPISODE
 
 if __name__ == '__main__':
+    t = time.time()
     A = Agent()
     A.batch()
-
+    print(time.time() - t)
