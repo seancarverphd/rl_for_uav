@@ -149,7 +149,7 @@ class Agent():
 
             # Backpropagation
             overall_loss_value = sum(actor_losses) + sum(critic_losses)
-            overall_loss_value.backward(retain_graph=True)
+            overall_loss_value.backward()
             self.optimizer.step()
 
             # Reset env and clear the loss and reward history for next episode
