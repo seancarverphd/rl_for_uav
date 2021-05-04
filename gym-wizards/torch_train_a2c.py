@@ -61,35 +61,31 @@ class Agent():
     def choose_action(self, state):
         state_v = torch.FloatTensor([state])  # TODO comment still good?:  creates a tensor of shape=[1, n_obs]: list from input needed for shape
         state_v = state_v.to(DEVICE)
-        self.action_probs_v, self.critic_value_v = self.model(state_v)
-        self.action_probs = self.action_probs_v.squeeze(dim=0).data.cpu().numpy()
-        self.critic_value = self.critic_value_v.squeeze(dim=0).data.cpu().numpy()
-        action = np.random.choice(self.n_actions, p=np.squeeze(self.action_probs))
-        return action
-
-    def record_model_output(self):
-        self.action_probs_history.append(math.log(self.action_probs[self.action]))  # TODO indexing correct?
-        self.critic_value_v_history.append(self.critic_value_v)
-        self.critic_value_history.append(self.critic_value)
+        action_probs_v, critic_value_v = self.model(state_v)
+        action_probs = action_probs_v.squeeze(dim=0).data.cpu().numpy()
+        critic_value = critic_value_v.squeeze(dim=0).data.cpu().numpy()
+        action = np.random.choice(self.n_actions, p=np.squeeze(action_probs))
+        return action, action_probs, critic_value, critic_value_v
 
     def episode(self):
-        self.state = self.env.reset()
-        self.episode_reward = 0
+        action_probs_history = []
+        critic_value_history = []
+        critic_value_v_history = []
+        rewards_history  = []
+        state = self.env.reset()
+        episode_reward = 0
         done = False  # TODO Uncomment for while not done
         while not done:  # better to let the environment count the steps as with some problems the number can be variable 
             # Take a step using the learned policy
-            self.action = self.choose_action(self.state)
-            self.record_model_output()
-            self.state, reward, done, _ = self.env.step(self.action)
-            self.rewards_history.append(reward)
-            self.episode_reward += reward
+            action, action_probs, critic_value, critic_value_v = self.choose_action(state)
+            action_probs_history.append(math.log(action_probs[action]))  # TODO indexing correct?
+            critic_value_v_history.append(critic_value_v)
+            critic_value_history.append(critic_value)
+            state, reward, done, _ = self.env.step(action)
+            rewards_history.append(reward)
+            episode_reward += reward
+        return state, episode_reward, rewards_history, action_probs_history, critic_value_history, critic_value_v_history
 
-    def batch_init(self):
-        self.action_probs_history = []
-        self.critic_value_history = []
-        self.critic_value_v_history = []
-        self.rewards_history = []
-        self.best = None
 
     def proc_best(self):
         if self.best is None or self.best < self.episode_reward:
@@ -99,13 +95,15 @@ class Agent():
             return ''
 
     def print_episode_stats(self):
-        print(self.state, "Cumulative reward:", self.episode_reward, self.beststr) # examine the final state of each episode plus more
+        print(self.final_state, "Cumulative reward:", self.episode_reward, self.beststr) # examine the final state of each episode plus more
 
     def batch(self):
-        self.batch_init()
+        self.best = None
         for _ in range(EPISODES):
             self.optimizer.zero_grad()  # TODO Is this where it needs to be?
-            self.episode() ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
+
+            self.final_state, self.episode_reward, self.rewards_history, self.action_probs_history, self.critic_value_history, self.critic_value_v_history = self.episode() 
+            ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
             self.beststr = self.proc_best()
             self.print_episode_stats()
 
