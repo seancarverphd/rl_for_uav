@@ -70,7 +70,7 @@ class Agent():
         action_probs_history = []
         critic_value_history = []
         critic_value_v_history = []
-        rewards_history  = []
+        rewards_history = []
         state = self.env.reset()
         episode_reward = 0
         done = False  # TODO Uncomment for while not done
@@ -86,30 +86,30 @@ class Agent():
         return state, episode_reward, rewards_history, action_probs_history, critic_value_history, critic_value_v_history
 
 
-    def proc_best(self):
-        if self.best is None or self.best < self.episode_reward:
-            self.best = self.episode_reward
+    def proc_best(self, episode_reward):
+        if self.best is None or self.best < episode_reward:
+            self.best = episode_reward
             return "BEST"
         else:
             return ''
 
-    def print_episode_stats(self):
-        print(self.final_state, "Cumulative reward:", self.episode_reward, self.beststr) # examine the final state of each episode plus more
+    def print_episode_stats(self, final_state, episode_reward, best_episode_so_far_str):
+        print(final_state, "Cumulative reward:", episode_reward, best_episode_so_far_str) # examine the final state of each episode plus more
 
     def batch(self):
-        self.best = None
+        self.best = None  # self.best will be best episode over all episodes in batch
         for _ in range(EPISODES):
             self.optimizer.zero_grad()  # TODO Is this where it needs to be?
 
-            self.final_state, self.episode_reward, self.rewards_history, self.action_probs_history, self.critic_value_history, self.critic_value_v_history = self.episode() 
+            final_state, episode_reward, rewards_history, action_probs_history, critic_value_history, critic_value_v_history = self.episode() 
             ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
-            self.beststr = self.proc_best()
-            self.print_episode_stats()
+            best_episode_so_far_str = self.proc_best(episode_reward)
+            self.print_episode_stats(final_state, episode_reward, best_episode_so_far_str)
 
             # store the cumulative, discounted rewards
             cumulative_discounted_rewards = []
             discounted_sum = 0
-            for r in self.rewards_history[::-1]:
+            for r in rewards_history[::-1]:
                 discounted_sum = r + GAMMA * discounted_sum
                 cumulative_discounted_rewards.insert(0, discounted_sum)
 
@@ -118,7 +118,7 @@ class Agent():
             normalized_cumulative_discounted_rewards = (cumulative_discounted_rewards - np.mean(cumulative_discounted_rewards)) / (np.std(cumulative_discounted_rewards) + 0.000001)
             normalized_cumulative_discounted_rewards = normalized_cumulative_discounted_rewards.tolist()
 
-            history = zip(self.action_probs_history, self.critic_value_v_history, normalized_cumulative_discounted_rewards)
+            history = zip(action_probs_history, critic_value_v_history, normalized_cumulative_discounted_rewards)
             actor_losses = []
             critic_losses = []
             for log_prob, critic_val, normed_cum_disc_rew in history:
@@ -149,12 +149,7 @@ class Agent():
             overall_loss_value = sum(actor_losses) + sum(critic_losses)
             overall_loss_value.backward()
             self.optimizer.step()
-
-            # Reset env and clear the loss and reward history for next episode
-            self.action_probs_history.clear()
-            self.critic_value_history.clear()
-            self.rewards_history.clear()
-
+            ### NOW DO ANOTHER EPISODE
 
 if __name__ == '__main__':
     A = Agent()
