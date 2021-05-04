@@ -98,6 +98,7 @@ class Agent():
     def batch(self):
         self.batch_init()
         for episode in range(EPISODES):
+            self.optimizer.zero_grad()  # TODO Is this where it needs to be?
             self.episode()
             ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
             if self.best is None or self.best < self.episode_reward:
@@ -122,7 +123,6 @@ class Agent():
             history = zip(self.action_probs_history, self.critic_value_v_history, normalized_cumulative_discounted_rewards)
             actor_losses = []
             critic_losses = []
-            self.optimizer.zero_grad()  # TODO Is this where it needs to be?
             for log_prob, critic_val, normed_cum_disc_rew in history:
                 # At this point in history, the critic estimated that we would get a
                 # total reward = `value` in the future. We took an action with log probability
