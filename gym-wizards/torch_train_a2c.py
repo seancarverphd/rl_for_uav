@@ -44,6 +44,7 @@ class Model(torch.nn.Module):
         common_out = self.common(inputs.unsqueeze(dim=1))
         return torch.nn.Softmax(dim=0)(self.action(common_out)[0][0]), self.critic(common_out)
 
+
 class Agent():
     def __init__(self):
         # load the environment and model
@@ -153,6 +154,7 @@ class Agent():
             self.action_probs_history.clear()
             self.critic_value_history.clear()
             self.rewards_history.clear()
+
 
 if __name__ == '__main__':
     A = Agent()
