@@ -24,8 +24,6 @@ STEPS_PER_EPISODE = 30  # Does not apply to CartPole (variable)
 SET_STEPS = True  # True if environment has a self.max_steps attribute and you want to set it to STEPS_PER_EPISODE
 GAMMA = .9  # Discount factor for rewards
 
-torch.autograd.set_detect_anomaly(True)
-
 ## CREATE THE NEURAL NETWORK
 
 class Model(torch.nn.Module):
