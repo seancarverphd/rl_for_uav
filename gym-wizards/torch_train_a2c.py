@@ -60,6 +60,7 @@ rewards_history = []
 best = None
 
 for episode in range(EPISODES):
+    optimizer.zero_grad()  # TODO Is this where it needs to be?
     state = env.reset()
     episode_reward = 0
     done = False  # TODO Uncomment for while not done
@@ -102,7 +103,6 @@ for episode in range(EPISODES):
     history = zip(action_probs_history, critic_value_history, normalized_cumulative_discounted_rewards)
     actor_losses = []
     critic_losses = []
-    optimizer.zero_grad()  # TODO Is this where it needs to be?
     for log_prob, critic_val, normed_cum_disc_rew in history:
         # At this point in history, the critic estimated that we would get a
         # total reward = `value` in the future. We took an action with log probability
