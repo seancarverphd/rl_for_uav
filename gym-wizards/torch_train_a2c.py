@@ -59,7 +59,7 @@ class Agent():
         self.huber_loss = torch.nn.modules.loss.SmoothL1Loss()  # same as torch.nn.HuberLoss() but still available
 
     def choose_action(self, state):
-        state_v = torch.FloatTensor([self.state])  # TODO comment still good?:  creates a tensor of shape=[1, n_obs]: list from input needed for shape
+        state_v = torch.FloatTensor([state])  # TODO comment still good?:  creates a tensor of shape=[1, n_obs]: list from input needed for shape
         state_v = state_v.to(DEVICE)
         self.action_probs_v, self.critic_value_v = self.model(state_v)
         self.action_probs = self.action_probs_v.squeeze(dim=0).data.cpu().numpy()
@@ -72,21 +72,17 @@ class Agent():
         self.critic_value_v_history.append(self.critic_value_v)
         self.critic_value_history.append(self.critic_value)
 
-    def record_reward(self, reward):
-        self.rewards_history.append(reward)
-        self.episode_reward += reward
-
     def episode(self):
         self.state = self.env.reset()
         self.episode_reward = 0
         done = False  # TODO Uncomment for while not done
         while not done:  # better to let the environment count the steps as with some problems the number can be variable 
-        # for step in range(STEPS_PER_EPISODE):
             # Take a step using the learned policy
             self.action = self.choose_action(self.state)
             self.record_model_output()
             self.state, reward, done, _ = self.env.step(self.action)
-            self.record_reward(reward)
+            self.rewards_history.append(reward)
+            self.episode_reward += reward
 
     def batch_init(self):
         self.action_probs_history = []
@@ -95,18 +91,23 @@ class Agent():
         self.rewards_history = []
         self.best = None
 
+    def proc_best(self):
+        if self.best is None or self.best < self.episode_reward:
+            self.best = self.episode_reward
+            return "BEST"
+        else:
+            return ''
+
+    def print_episode_stats(self):
+        print(self.state, "Cumulative reward:", self.episode_reward, self.beststr) # examine the final state of each episode plus more
+
     def batch(self):
         self.batch_init()
-        for episode in range(EPISODES):
+        for _ in range(EPISODES):
             self.optimizer.zero_grad()  # TODO Is this where it needs to be?
-            self.episode()
-            ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
-            if self.best is None or self.best < self.episode_reward:
-                self.best = self.episode_reward
-                beststr = "BEST"
-            else:
-                beststr = ''
-            print(self.state, "Cumulative reward:", self.episode_reward, beststr) # examine the final state of each episode plus more
+            self.episode() ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
+            self.beststr = self.proc_best()
+            self.print_episode_stats()
 
             # store the cumulative, discounted rewards
             cumulative_discounted_rewards = []
