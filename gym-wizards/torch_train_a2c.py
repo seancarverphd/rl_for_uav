@@ -57,10 +57,11 @@ class Agent():
         action_probs = action_probs_v.squeeze(dim=0).data.cpu().numpy()
         critic_value = critic_value_v.squeeze(dim=0).data.cpu().numpy()
         action = np.random.choice(self.n_actions, p=np.squeeze(action_probs))
-        return action, action_probs, critic_value, critic_value_v
+        return action, action_probs, critic_value, action_probs_v, critic_value_v
 
     def episode(self):
-        action_probs_history = []
+        action_logprobs_history = []
+        action_logprobs_v_history = []
         critic_value_history = []
         critic_value_v_history = []
         rewards_history = []
@@ -69,14 +70,15 @@ class Agent():
         done = False  # TODO Uncomment for while not done
         while not done:  # better to let the environment count the steps as with some problems the number can be variable 
             # Take a step using the learned policy
-            action, action_probs, critic_value, critic_value_v = self.choose_action(state)
-            action_probs_history.append(math.log(action_probs[action]))  # TODO indexing correct?
-            critic_value_v_history.append(critic_value_v)
+            action, action_probs, critic_value, action_probs_v, critic_value_v = self.choose_action(state)
+            action_logprobs_history.append(math.log(action_probs[action]))  # TODO indexing correct?
+            action_logprobs_v_history.append(torch.log(action_probs_v[action]))
             critic_value_history.append(critic_value)
+            critic_value_v_history.append(critic_value_v)
             state, reward, done, _ = self.env.step(action)
             rewards_history.append(reward)
             episode_reward += reward
-        return state, episode_reward, rewards_history, action_probs_history, critic_value_history, critic_value_v_history
+        return state, episode_reward, rewards_history, action_logprobs_history, critic_value_history, critic_value_v_history
 
 
     def proc_best(self, episode_reward):
@@ -105,7 +107,7 @@ class Agent():
         for _ in range(EPISODES):
             self.optimizer.zero_grad()  # TODO Is this where it needs to be?
 
-            final_state, episode_reward, rewards_history, action_probs_history, critic_value_history, critic_value_v_history = self.episode() 
+            final_state, episode_reward, rewards_history, action_logprobs_history, critic_value_history, critic_value_v_history = self.episode()
 
             ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
             best_episode_so_far_str = self.proc_best(episode_reward)
@@ -114,7 +116,7 @@ class Agent():
 
             # Normalize the cumulative, discounted reward history
 
-            history = zip(action_probs_history, critic_value_v_history, transformed_rewards)
+            history = zip(action_logprobs_history, critic_value_v_history, transformed_rewards)
             actor_losses = []
             critic_losses = []
             for log_prob, critic_val, transformed_reward in history:
