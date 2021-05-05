@@ -61,22 +61,19 @@ class Episode():
         state_v = state_v.to(DEVICE)
         action_probs_v, critic_value_v = self.model(state_v)
         action_probs = action_probs_v.squeeze(dim=0).data.cpu().numpy()
-        critic_value = critic_value_v.squeeze(dim=0).data.cpu().numpy()
         action = np.random.choice(self.n_actions, p=np.squeeze(action_probs))
-        return action, action_probs, critic_value, action_probs_v, critic_value_v
+        return action, action_probs_v, critic_value_v
 
     def run(self):
         while not self.done:  # better to let the environment count the steps as with some problems the number can be variable 
             # Take a step using the learned policy
-            self.action, self.action_probs, self.critic_value, self.action_probs_v, self.critic_value_v = self.choose_action(self.state)
-            self.action_logprobs_history.append(math.log(self.action_probs[self.action]))  # TODO indexing correct?
+            self.action, self.action_probs_v, self.critic_value_v = self.choose_action(self.state)
             self.action_logprobs_v_history.append(torch.log(self.action_probs_v[self.action]))
-            self.critic_value_history.append(self.critic_value)
             self.critic_value_v_history.append(self.critic_value_v)
             self.state, self.reward, self.done, _ = self.env.step(self.action)
             self.rewards_history.append(self.reward)
             self.episode_reward += self.reward
-        return self.state, self.episode_reward, self.rewards_history, self.action_logprobs_history, self.action_logprobs_v_history, self.critic_value_history, self.critic_value_v_history
+        return self.state, self.episode_reward, self.rewards_history, self.action_logprobs_v_history, self.critic_value_v_history
 
 
 class Agent():
@@ -118,7 +115,7 @@ class Agent():
             self.optimizer.zero_grad()  # TODO Is this where it needs to be?
 
             episode = Episode(self)  # passes itself in as parameter
-            final_state, episode_reward, rewards_history, action_logprobs_history, action_logprobs_v_history, critic_value_history, critic_value_v_history = episode.run()
+            final_state, episode_reward, rewards_history, action_logprobs_v_history, critic_value_v_history = episode.run()
 
             ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
             best_episode_so_far_str = self.proc_best(episode_reward)
