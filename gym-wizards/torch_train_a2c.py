@@ -86,6 +86,8 @@ class Episode():
         self.history = zip(self.action_logprobs_v_history, self.critic_value_v_history, self.transformed_rewards)
         self.final_state = self.state
 
+    def out_str(self):
+        return str(self.final_state) + " Cumulative reward: " + str(self.episode_reward)
 
 class Agent():
     def __init__(self):
@@ -119,7 +121,8 @@ class Agent():
 
             ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
             best_episode_so_far_str = self.proc_best(episode.episode_reward)
-            self.print_episode_stats(n, episode.final_state, episode.episode_reward, best_episode_so_far_str)
+            # self.print_episode_stats(n, episode.final_state, episode.episode_reward, best_episode_so_far_str)
+            print(n, episode.out_str(), best_episode_so_far_str) 
 
             actor_losses = []
             critic_losses = []
