@@ -47,9 +47,7 @@ class Episode():
         self.model = parent.model
         self.obs_size = parent.obs_size 
         self.n_actions = parent.n_actions
-        self.action_logprobs_history = []
         self.action_logprobs_v_history = []
-        self.critic_value_history = []
         self.critic_value_v_history = []
         self.rewards_history = []
         self.state = self.env.reset()
@@ -73,6 +71,7 @@ class Episode():
             self.state, self.reward, self.done, _ = self.env.step(self.action)
             self.rewards_history.append(self.reward)
             self.episode_reward += self.reward
+            self.final_state = self.state
         return self.state, self.episode_reward, self.rewards_history, self.action_logprobs_v_history, self.critic_value_v_history
 
 
@@ -115,11 +114,11 @@ class Agent():
             self.optimizer.zero_grad()  # TODO Is this where it needs to be?
 
             episode = Episode(self)  # passes itself in as parameter
-            final_state, episode_reward, rewards_history, action_logprobs_v_history, critic_value_v_history = episode.run()
+            _, _, rewards_history, action_logprobs_v_history, critic_value_v_history = episode.run()
 
             ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
-            best_episode_so_far_str = self.proc_best(episode_reward)
-            self.print_episode_stats(n, final_state, episode_reward, best_episode_so_far_str)
+            best_episode_so_far_str = self.proc_best(episode.episode_reward)
+            self.print_episode_stats(n, episode.final_state, episode.episode_reward, best_episode_so_far_str)
             transformed_rewards = self.discount_and_standardize(rewards_history)
 
             # Normalize the cumulative, discounted reward history
@@ -156,4 +155,4 @@ if __name__ == '__main__':
     np.random.seed(SEED)
     A = Agent()
     A.batch()
-    print(time.time() - t)
+    print(time.time() - t, "Seconds")
