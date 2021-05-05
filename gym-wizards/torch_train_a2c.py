@@ -108,46 +108,42 @@ class Agent():
         else:
             return ''
 
-    def print_episode_stats(self, n, final_state, episode_reward, best_episode_so_far_str):
-        print(n, final_state, "Cumulative reward:", episode_reward, best_episode_so_far_str) # examine the final state of each episode plus more
+    def losses(self, episode):
+        actor_losses = []
+        critic_losses = []
+        for log_prob, critic_val, transformed_reward in episode.history:
+            '''At this point in history
+                    the critic estimated that we would get a # total reward = `critic_val` in the future.
+                    We took an action with log probability `log_prob` 
+                    and ended up recieving a total reward = `transformed_reward`.
+               The actor must be updated so that it predicts an action that leads to high rewards (compared to critic's estimate) with high probability.'''
+            diff = transformed_reward - critic_val
+            actor_losses.append(-log_prob * diff)  # actor loss
+            # The critic must be updated so that it predicts a better estimate of the future rewards.
+            critic_losses.append(self.huber_loss(torch.FloatTensor(critic_val[0][0]), torch.FloatTensor([transformed_reward])))
+            '''TODO ======= FROM LAPIN --- Should we add entropy loss? ============
+            ent_v = -(torch.log(2*math.pi*var_v) + 1)/2  # becomes pi log pi??  Check!
+            entropy_loss_v = ENTROPY_BETA * ent_v.mean()
+            loss_v = loss_policy_v + entropy_loss_v + loss_value_v'''
+        return actor_losses, critic_losses
 
     def batch(self):
         self.best = None  # self.best will be best episode over all episodes in batch
         for n in range(EPISODES):
-            self.optimizer.zero_grad()  # TODO Is this where it needs to be?
+            self.optimizer.zero_grad()
 
-            episode = Episode(self)  # passes itself in as parameter
+            episode = Episode(self)  # self become parent inside Episode 
             episode.run()
+            best_str = self.proc_best(episode.episode_reward)
+            print(n, episode.out_str(), best_str) 
 
-            ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
-            best_episode_so_far_str = self.proc_best(episode.episode_reward)
-            # self.print_episode_stats(n, episode.final_state, episode.episode_reward, best_episode_so_far_str)
-            print(n, episode.out_str(), best_episode_so_far_str) 
-
-            actor_losses = []
-            critic_losses = []
-            for log_prob, critic_val, transformed_reward in episode.history:
-                '''At this point in history
-                        the critic estimated that we would get a # total reward = `critic_val` in the future.
-                        We took an action with log probability `log_prob` 
-                        and ended up recieving a total reward = `transformed_reward`.
-                   The actor must be updated so that it predicts an action that leads to high rewards (compared to critic's estimate) with high probability.'''
-                diff = transformed_reward - critic_val
-                actor_losses.append(-log_prob * diff)  # actor loss
-
-                # The critic must be updated so that it predicts a better estimate of the future rewards.
-                critic_losses.append(self.huber_loss(torch.FloatTensor(critic_val[0][0]), torch.FloatTensor([transformed_reward])))
-
-                '''======= FROM LAPIN ============
-                ent_v = -(torch.log(2*math.pi*var_v) + 1)/2
-                entropy_loss_v = ENTROPY_BETA * ent_v.mean()
-                loss_v = loss_policy_v + entropy_loss_v + loss_value_v'''
+            # Loss function
+            actor_losses, critic_losses = self.losses(episode)
+            overall_loss_value = sum(actor_losses) + sum(critic_losses)
 
             # Backpropagation
-            overall_loss_value = sum(actor_losses) + sum(critic_losses)
             overall_loss_value.backward()
             self.optimizer.step()
-            ### NOW DO ANOTHER EPISODE
 
 if __name__ == '__main__':
     t = time.time()
