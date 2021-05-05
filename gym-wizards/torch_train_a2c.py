@@ -114,12 +114,12 @@ class Agent():
             self.optimizer.zero_grad()  # TODO Is this where it needs to be?
 
             episode = Episode(self)  # passes itself in as parameter
-            _, _, rewards_history, action_logprobs_v_history, critic_value_v_history = episode.run()
+            _, _, _, action_logprobs_v_history, critic_value_v_history = episode.run()
 
             ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
             best_episode_so_far_str = self.proc_best(episode.episode_reward)
             self.print_episode_stats(n, episode.final_state, episode.episode_reward, best_episode_so_far_str)
-            transformed_rewards = self.discount_and_standardize(rewards_history)
+            transformed_rewards = self.discount_and_standardize(episode.rewards_history)
 
             # Normalize the cumulative, discounted reward history
 
