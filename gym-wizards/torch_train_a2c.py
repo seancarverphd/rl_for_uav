@@ -11,6 +11,7 @@ import torch
 # ENV = "CartPole-v1" # "field1d-v0" # "field2d-v0"
 ENV = "field1d-v0"
 DEVICE = "cpu"
+SEED = 0
 HIDDEN_SIZE = 48 # size of hidden layer
 LEARNING_RATE = 0.005
 EPISODES = 500  # Really this is number of singleton batches
@@ -39,6 +40,45 @@ class Model(torch.nn.Module):
         return torch.nn.Softmax(dim=0)(self.action(common_out)[0][0]), self.critic(common_out)
 
 
+class Episode():
+    def __init__(self, parent):
+        self.parent = parent
+        self.env = parent.env
+        self.model = parent.model
+        self.obs_size = parent.obs_size 
+        self.n_actions = parent.n_actions
+        self.action_logprobs_history = []
+        self.action_logprobs_v_history = []
+        self.critic_value_history = []
+        self.critic_value_v_history = []
+        self.rewards_history = []
+        self.state = self.env.reset()
+        self.episode_reward = 0
+        self.done = False  # TODO Uncomment for while not done
+
+    def choose_action(self, state):
+        state_v = torch.FloatTensor([state])  # TODO comment still good?:  creates a tensor of shape=[1, n_obs]: list from input needed for shape
+        state_v = state_v.to(DEVICE)
+        action_probs_v, critic_value_v = self.model(state_v)
+        action_probs = action_probs_v.squeeze(dim=0).data.cpu().numpy()
+        critic_value = critic_value_v.squeeze(dim=0).data.cpu().numpy()
+        action = np.random.choice(self.n_actions, p=np.squeeze(action_probs))
+        return action, action_probs, critic_value, action_probs_v, critic_value_v
+
+    def run(self):
+        while not self.done:  # better to let the environment count the steps as with some problems the number can be variable 
+            # Take a step using the learned policy
+            self.action, self.action_probs, self.critic_value, self.action_probs_v, self.critic_value_v = self.choose_action(self.state)
+            self.action_logprobs_history.append(math.log(self.action_probs[self.action]))  # TODO indexing correct?
+            self.action_logprobs_v_history.append(torch.log(self.action_probs_v[self.action]))
+            self.critic_value_history.append(self.critic_value)
+            self.critic_value_v_history.append(self.critic_value_v)
+            self.state, self.reward, self.done, _ = self.env.step(self.action)
+            self.rewards_history.append(self.reward)
+            self.episode_reward += self.reward
+        return self.state, self.episode_reward, self.rewards_history, self.action_logprobs_history, self.action_logprobs_v_history, self.critic_value_history, self.critic_value_v_history
+
+
 class Agent():
     def __init__(self):
         # load the environment and model
@@ -51,47 +91,6 @@ class Agent():
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=LEARNING_RATE)
         self.huber_loss = torch.nn.modules.loss.SmoothL1Loss()  # same as torch.nn.HuberLoss() but still available
 
-    def choose_action(self, state):
-        state_v = torch.FloatTensor([state])  # TODO comment still good?:  creates a tensor of shape=[1, n_obs]: list from input needed for shape
-        state_v = state_v.to(DEVICE)
-        action_probs_v, critic_value_v = self.model(state_v)
-        action_probs = action_probs_v.squeeze(dim=0).data.cpu().numpy()
-        critic_value = critic_value_v.squeeze(dim=0).data.cpu().numpy()
-        action = np.random.choice(self.n_actions, p=np.squeeze(action_probs))
-        return action, action_probs, critic_value, action_probs_v, critic_value_v
-
-    def episode(self):
-        action_logprobs_history = []
-        action_logprobs_v_history = []
-        critic_value_history = []
-        critic_value_v_history = []
-        rewards_history = []
-        state = self.env.reset()
-        episode_reward = 0
-        done = False  # TODO Uncomment for while not done
-        while not done:  # better to let the environment count the steps as with some problems the number can be variable 
-            # Take a step using the learned policy
-            action, action_probs, critic_value, action_probs_v, critic_value_v = self.choose_action(state)
-            action_logprobs_history.append(math.log(action_probs[action]))  # TODO indexing correct?
-            action_logprobs_v_history.append(torch.log(action_probs_v[action]))
-            critic_value_history.append(critic_value)
-            critic_value_v_history.append(critic_value_v)
-            state, reward, done, _ = self.env.step(action)
-            rewards_history.append(reward)
-            episode_reward += reward
-        return state, episode_reward, rewards_history, action_logprobs_history, action_logprobs_v_history, critic_value_history, critic_value_v_history
-
-
-    def proc_best(self, episode_reward):
-        if self.best is None or self.best < episode_reward:
-            self.best = episode_reward
-            return "BEST"
-        else:
-            return ''
-
-    def print_episode_stats(self, n, final_state, episode_reward, best_episode_so_far_str):
-        print(n, final_state, "Cumulative reward:", episode_reward, best_episode_so_far_str) # examine the final state of each episode plus more
-
     def discount_and_standardize(self, rewards_history):
         # store the cumulative, discounted rewards
         cumulative_discounted_rewards = []
@@ -103,12 +102,23 @@ class Agent():
         normalized_cumulative_discounted_rewards = (cumulative_discounted_rewards - np.mean(cumulative_discounted_rewards)) / (np.std(cumulative_discounted_rewards) + 0.000001)
         return normalized_cumulative_discounted_rewards.tolist()
 
+    def proc_best(self, episode_reward):
+        if self.best is None or self.best < episode_reward:
+            self.best = episode_reward
+            return "BEST"
+        else:
+            return ''
+
+    def print_episode_stats(self, n, final_state, episode_reward, best_episode_so_far_str):
+        print(n, final_state, "Cumulative reward:", episode_reward, best_episode_so_far_str) # examine the final state of each episode plus more
+
     def batch(self):
         self.best = None  # self.best will be best episode over all episodes in batch
         for n in range(EPISODES):
             self.optimizer.zero_grad()  # TODO Is this where it needs to be?
 
-            final_state, episode_reward, rewards_history, action_logprobs_history, action_logprobs_v_history, critic_value_history, critic_value_v_history = self.episode()
+            episode = Episode(self)  # passes itself in as parameter
+            final_state, episode_reward, rewards_history, action_logprobs_history, action_logprobs_v_history, critic_value_history, critic_value_v_history = episode.run()
 
             ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
             best_episode_so_far_str = self.proc_best(episode_reward)
@@ -145,6 +155,8 @@ class Agent():
 
 if __name__ == '__main__':
     t = time.time()
+    torch.manual_seed(SEED)
+    np.random.seed(SEED)
     A = Agent()
     A.batch()
     print(time.time() - t)
