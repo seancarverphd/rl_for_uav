@@ -62,6 +62,17 @@ class Episode():
         action = np.random.choice(self.n_actions, p=np.squeeze(action_probs))
         return action, action_probs_v, critic_value_v
 
+    def discount_and_standardize(self):
+        # store the cumulative, discounted rewards
+        cumulative_discounted_rewards = []
+        discounted_sum = 0
+        for r in self.rewards_history[::-1]:
+            discounted_sum = r + GAMMA * discounted_sum
+            cumulative_discounted_rewards.insert(0, discounted_sum)
+        cumulative_discounted_rewards = np.array(cumulative_discounted_rewards)
+        normalized_cumulative_discounted_rewards = (cumulative_discounted_rewards - np.mean(cumulative_discounted_rewards)) / (np.std(cumulative_discounted_rewards) + 0.000001)
+        return normalized_cumulative_discounted_rewards.tolist()
+
     def run(self):
         while not self.done:  # better to let the environment count the steps as with some problems the number can be variable 
             # Take a step using the learned policy
@@ -71,8 +82,9 @@ class Episode():
             self.state, self.reward, self.done, _ = self.env.step(self.action)
             self.rewards_history.append(self.reward)
             self.episode_reward += self.reward
-            self.final_state = self.state
-        return self.state, self.episode_reward, self.rewards_history, self.action_logprobs_v_history, self.critic_value_v_history
+        self.transformed_rewards = self.discount_and_standardize()
+        self.history = zip(self.action_logprobs_v_history, self.critic_value_v_history, self.transformed_rewards)
+        self.final_state = self.state
 
 
 class Agent():
@@ -86,17 +98,6 @@ class Agent():
         self.model = Model(self.obs_size, self.n_actions)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=LEARNING_RATE)
         self.huber_loss = torch.nn.modules.loss.SmoothL1Loss()  # same as torch.nn.HuberLoss() but still available
-
-    def discount_and_standardize(self, rewards_history):
-        # store the cumulative, discounted rewards
-        cumulative_discounted_rewards = []
-        discounted_sum = 0
-        for r in rewards_history[::-1]:
-            discounted_sum = r + GAMMA * discounted_sum
-            cumulative_discounted_rewards.insert(0, discounted_sum)
-        cumulative_discounted_rewards = np.array(cumulative_discounted_rewards)
-        normalized_cumulative_discounted_rewards = (cumulative_discounted_rewards - np.mean(cumulative_discounted_rewards)) / (np.std(cumulative_discounted_rewards) + 0.000001)
-        return normalized_cumulative_discounted_rewards.tolist()
 
     def proc_best(self, episode_reward):
         if self.best is None or self.best < episode_reward:
@@ -114,19 +115,15 @@ class Agent():
             self.optimizer.zero_grad()  # TODO Is this where it needs to be?
 
             episode = Episode(self)  # passes itself in as parameter
-            _, _, _, action_logprobs_v_history, critic_value_v_history = episode.run()
+            episode.run()
 
             ### FINISHED ONE EPISODE NOW PROCESS THAT EPISODE
             best_episode_so_far_str = self.proc_best(episode.episode_reward)
             self.print_episode_stats(n, episode.final_state, episode.episode_reward, best_episode_so_far_str)
-            transformed_rewards = self.discount_and_standardize(episode.rewards_history)
 
-            # Normalize the cumulative, discounted reward history
-
-            history = zip(action_logprobs_v_history, critic_value_v_history, transformed_rewards)
             actor_losses = []
             critic_losses = []
-            for log_prob, critic_val, transformed_reward in history:
+            for log_prob, critic_val, transformed_reward in episode.history:
                 '''At this point in history
                         the critic estimated that we would get a # total reward = `critic_val` in the future.
                         We took an action with log probability `log_prob` 
