@@ -62,6 +62,12 @@ class Episode():
         action = np.random.choice(self.n_actions, p=np.squeeze(action_probs))
         return action, action_probs_v, critic_value_v
 
+    def choose_max_action(self, state):
+        state_v = torch.FloatTensor([state]).to(DEVICE)
+        action_probs_v, critic_value_v = self.model(state_v)
+        max_action = torch.max(action_probs_v)
+        print(action_probs_v, max_action)
+
     def discount_and_standardize(self):
         # store the cumulative, discounted rewards
         cumulative_discounted_rewards = []
