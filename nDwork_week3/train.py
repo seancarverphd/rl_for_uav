@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import gym
+import gym_wizards
 from collections import namedtuple
 import numpy as np
 from tensorboardX import SummaryWriter
@@ -78,7 +79,9 @@ def filter_batch(batch, percentile):
 
 
 if __name__ == "__main__":
-    env = gym.make("CartPole-v0")
+    # env = gym.make("CartPole-v0")
+    env = gym.make("field1d-v0")
+
     obs_size = env.observation_space.shape[0]
     n_actions = env.action_space.n
 
