@@ -14,7 +14,7 @@ DEVICE = "cpu"
 SEED = 0
 HIDDEN_SIZE = 48 # size of hidden layer
 LEARNING_RATE = 0.005
-EPISODES = 500  # Really this is number of singleton batches
+EPISODES = 5000  # Really this is number of singleton batches
 STEPS_PER_EPISODE = 30  # Does not apply to CartPole (variable)
 SET_STEPS = True  # True if environment has a self.max_steps attribute and you want to set it to STEPS_PER_EPISODE
 GAMMA = .9  # Discount factor for rewards
@@ -51,6 +51,7 @@ class Episode():
         self.critic_value_v_history = []
         self.rewards_history = []
         self.state = self.env.reset()
+        self.entropies = []
         self.episode_reward = 0
         self.done = False  # TODO Uncomment for while not done
 
@@ -59,8 +60,9 @@ class Episode():
         state_v = state_v.to(DEVICE)
         action_probs_v, critic_value_v = self.model(state_v)
         action_probs = action_probs_v.squeeze(dim=0).data.cpu().numpy()
+        entropy = -sum(action_probs * np.log2(action_probs))
         action = np.random.choice(self.n_actions, p=np.squeeze(action_probs))
-        return action, action_probs_v, critic_value_v
+        return action, entropy, action_probs_v, critic_value_v
 
     def choose_max_action(self, state):
         state_v = torch.FloatTensor([state]).to(DEVICE)
@@ -82,7 +84,8 @@ class Episode():
     def run(self):
         while not self.done:  # better to let the environment count the steps as with some problems the number can be variable 
             # Take a step using the learned policy
-            self.action, self.action_probs_v, self.critic_value_v = self.choose_action(self.state)
+            self.action, entropy, self.action_probs_v, self.critic_value_v = self.choose_action(self.state)
+            self.entropies.append(entropy)
             self.action_logprobs_v_history.append(torch.log(self.action_probs_v[self.action]))
             self.critic_value_v_history.append(self.critic_value_v)
             self.state, self.reward, self.done, _ = self.env.step(self.action)
@@ -91,9 +94,10 @@ class Episode():
         self.transformed_rewards = self.discount_and_standardize()
         self.history = zip(self.action_logprobs_v_history, self.critic_value_v_history, self.transformed_rewards)
         self.final_state = self.state
+        self.mean_entropy = np.array(self.entropies).mean()
 
     def out_str(self):
-        return str(self.final_state) + " Cumulative reward: " + str(self.episode_reward)
+        return str(self.final_state) + " Cumulative reward: " + str(self.episode_reward) + " Mean Entropy " + str(self.mean_entropy)
 
 class Agent():
     def __init__(self):
@@ -107,9 +111,11 @@ class Agent():
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=LEARNING_RATE)
         self.huber_loss = torch.nn.modules.loss.SmoothL1Loss()  # same as torch.nn.HuberLoss() but still available
 
-    def proc_best(self, episode_reward):
+    def proc_best(self, episode_reward, n):
         if self.best is None or self.best < episode_reward:
             self.best = episode_reward
+            self.best_rewards.append(self.best)
+            self.best_indicies.append(n)
             return "BEST"
         else:
             return ''
@@ -135,12 +141,18 @@ class Agent():
 
     def batch(self):
         self.best = None  # self.best will be best episode over all episodes in batch
+        self.log_mean_entropies = []
+        self.episode_rewards = []
+        self.best_rewards = []
+        self.best_indicies = []
         for n in range(EPISODES):
             self.optimizer.zero_grad()
 
             episode = Episode(self)  # self become parent inside Episode 
             episode.run()
-            best_str = self.proc_best(episode.episode_reward)
+            self.log_mean_entropies.append(np.log10(episode.mean_entropy))
+            self.episode_rewards.append(episode.episode_reward)
+            best_str = self.proc_best(episode.episode_reward, n)
             print(n, episode.out_str(), best_str) 
 
             # Loss function
@@ -151,10 +163,15 @@ class Agent():
             overall_loss_value.backward()
             self.optimizer.step()
 
+def reseed(seed=None):
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
 if __name__ == '__main__':
     t = time.time()
-    torch.manual_seed(SEED)
-    np.random.seed(SEED)
+    reseed(SEED)
+    # torch.manual_seed(SEED)
+    # np.random.seed(SEED)
     A = Agent()
     A.batch()
     print(time.time() - t, "Seconds")

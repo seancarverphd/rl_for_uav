@@ -35,3 +35,7 @@ class Field1D(gym.Env):  # To use Gym inherit from gym.Env
     def render(self):
         print(str(self.x) + " approaching " + str(self.opt))
 
+    def reward_func(self, x):
+        reward = -(x - self.opt)**2 + self.peak
+        return reward
+
