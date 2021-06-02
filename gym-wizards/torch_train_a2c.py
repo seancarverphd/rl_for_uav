@@ -11,7 +11,7 @@ import torch
 # ENV = "CartPole-v1" # "field1d-v0" # "field2d-v0"
 ENV = "field1d-v0"
 DEVICE = "cpu"
-SEED = 0
+SEED = 3
 HIDDEN_SIZE = 48 # size of hidden layer
 LEARNING_RATE = 0.005
 EPISODES = 5000  # Really this is number of singleton batches
