@@ -53,10 +53,10 @@ class Episode():
         self.state = self.env.reset()
         self.entropies = []
         self.episode_reward = 0
-        self.done = False  # TODO Uncomment for while not done
+        self.done = False
 
     def choose_action(self, state):
-        state_v = torch.FloatTensor([state])  # TODO comment still good?:  creates a tensor of shape=[1, n_obs]: list from input needed for shape
+        state_v = torch.FloatTensor([state])  # creates a tensor of shape=[1, n_obs]: list [state] needed for shape
         state_v = state_v.to(DEVICE)
         action_probs_v, critic_value_v = self.model(state_v)
         action_probs = action_probs_v.squeeze(dim=0).data.cpu().numpy()
@@ -133,7 +133,7 @@ class Agent():
             actor_losses.append(-log_prob * diff)  # actor loss
             # The critic must be updated so that it predicts a better estimate of the future rewards.
             critic_losses.append(self.huber_loss(torch.FloatTensor(critic_val[0][0]), torch.FloatTensor([transformed_reward])))
-            '''TODO ======= FROM LAPIN --- Should we add entropy loss? ============
+            '''======= FROM LAPIN --- Should we add entropy loss? ============
             ent_v = -(torch.log(2*math.pi*var_v) + 1)/2  # becomes pi log pi??  Check!
             entropy_loss_v = ENTROPY_BETA * ent_v.mean()
             loss_v = loss_policy_v + entropy_loss_v + loss_value_v'''
