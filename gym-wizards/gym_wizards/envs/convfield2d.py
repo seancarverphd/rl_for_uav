@@ -1,6 +1,24 @@
 import numpy as np
 import gym
 
+class Grid():
+    def __init__(self):
+        self.dx = 1
+        self.dy = 1
+        self.nx = 10
+        self.ny = 8
+        self.clear_grid()
+        
+    def clear_grid(self):
+        self.grid = np.zeros([self.ny, self.nx])
+        
+    def add_xy(self, x, y):
+        x1 = int(round(min(x/self.dx, self.nx-1)))
+        y1 = int(round(min(y/self.dy, self.ny-1)))
+        print(x1, y1)
+        self.grid[y1,x1] += 1
+        print(self.grid)
+
 class Field2D(gym.Env):  # To use Gym inherit from gym.Env
     def __init__(self):
         self.opt_x = 5.
