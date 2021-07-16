@@ -20,7 +20,29 @@ SET_STEPS = True  # True if environment has a self.max_steps attribute and you w
 GAMMA = .9  # Discount factor for rewards
 
 
-## CREATE THE NEURAL NETWORK
+## THE NEW NEURAL NETWORK WITH CONVOLUTIONS
+class ConvModel(torch.nn.Module):
+    def __init__(self):
+        super(ConvModel, self).__init__(n_actions)
+
+        self.common = torch.nn.Sequential(
+                torch.nn.Conv2D(1, 1, kernel_size=3, padding=1)  # One output channel?
+                torch.nn.Tanh(),
+                torch.nn.MaxPool2d(2)
+
+                torch.nn.Conv2D(1, 1, kernel_size=3, padding=1)  # One output channel?
+                torch.nn.Tanh(),
+                torch.nn.MaxPool2d(2)
+        )
+        self.action = torch.nn.Linear(CONV_OUTPUT_SIZE, n_actions) # TODO What is CONV_OUTPUT_SIZE?  Fix this.
+        self.critic = torch.nn.Linear(CONV_OUTPUT_SIZE, 1)  # TODO Fix this.
+
+    def forward(self, inputs):
+        common_out = self.common(inputs.unsqueeze(dim=1))
+        return torch.nn.Softmax(dim=0)(self.action(common_out)[0][0]), self.critic(common_out)
+
+                    
+## THE OLD NEURAL NETWORK
 class Model(torch.nn.Module):
     def __init__(self, obs_size, n_actions):
         super(Model, self).__init__()
